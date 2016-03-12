@@ -25,6 +25,7 @@ library
                      , binary
                      , containers
                      , distributed-process
+                     , distributed-static
                      , distributed-process-task
                      , network-transport-tcp
                      , distributed-process-client-server
