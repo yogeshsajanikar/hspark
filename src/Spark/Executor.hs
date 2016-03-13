@@ -13,13 +13,13 @@ import Spark.Pure.Exec
 -- 'reducing'. They are characterized by the fact that mapping can be
 -- pipelined, whereas reduce stage typically would need a shuffle in
 -- between. 
-collect :: Serializable a => Context -> RDD a -> IO [a]
+collect :: (RDD a b, Serializable b) => Context -> a b -> IO [b]
 collect = undefined
 -- collect sc rdd = case sc of
 --                    Pure -> executePure rdd
 --                    Distributed nodes -> executeDistributed nodes rdd
 
 
-executeDistributed :: [NodeId] -> RDD a -> IO [a]
+executeDistributed :: (RDD a b, Serializable b) => Context -> [NodeId] -> a b -> IO [b]
 executeDistributed = undefined
 

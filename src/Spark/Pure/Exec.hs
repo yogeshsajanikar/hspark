@@ -11,7 +11,7 @@ import Control.Distributed.Process.Serializable
 import Control.Distributed.Static
 import Data.Typeable
     
-executePure :: RDD a -> IO [a]
+executePure :: RDD a b => a b -> IO [b]
 executePure rdd = undefined
     -- case rdd of
     --   RDD (Partitions ps) -> return . concat . map snd . M.toList $ ps

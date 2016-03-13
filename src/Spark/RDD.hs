@@ -27,49 +27,50 @@ import Control.Monad
 newtype Partitions a = Partitions { _dataMaps :: M.Map Int [a] }
     deriving (Show, Generic)
 
+emptyP :: Partitions a
+emptyP = Partitions M.empty
              
 instance Binary a => Binary (Partitions a)
 
-
--- Due to existential types, we will not be able to serialize RDDs,
--- however, we can serialize closures, and results of other
--- RDDs. These intermediate results need to be serialized.
-                 
 -- | RDD aka Resilient Distributed Data
--- RDD can be created from the data itself, or it can be created as an
--- unary function map between source data and desired data. It can
--- also be created as a pair
-data RDD a = RDD (Partitions a)
-           | forall b . Serializable b => MapRDD (Closure (b -> a)) (RDD b)
-           | forall b . Serializable b => MapRDDIO (Closure (b -> IO a)) (RDD b)
-             deriving (Typeable)
+class Typeable b => RDD a b where
+
+    -- | Execute the context and get the partitions
+    exec :: Context -> a b -> Partitions b
+
+
+data ListRDD b = ListRDD { _listP :: Partitions b }
 
 -- | Create an empty RDD
-emptyRDD :: Serializable a => RDD a
-emptyRDD = RDD $ Partitions $ M.empty
+emptyRDD :: Serializable a => Context -> ListRDD a
+emptyRDD _ = ListRDD emptyP
 
 -- | Create RDD from the data itself
-createRDD :: Serializable a => Context -> Int -> [a] -> RDD a
-createRDD sc n xs = RDD $ Partitions $ partitions
+fromListRDD :: Serializable a => Context -> Int -> [a] -> ListRDD a
+fromListRDD _ n xs = ListRDD $ Partitions partitions
     where
       partitions = M.fromList ps
       ps = zip [0..] $ splits n xs
 
--- | Create map RDD from a function closure and base RDD
-mapRDD :: (Serializable a, Serializable b) => Context -> Closure (a -> b) -> RDD a -> RDD b
-mapRDD sc action rddA = MapRDD action rddA
+-- | RDD representing a pure map between a base with a function
+data MapRDD a b c = MapRDD { _baseM :: a b
+                           , _cFunM :: Closure (b -> c)
+                           }
 
--- | Map an IO action for transforming RDD.
--- This is required when distributing work across nodes to take in the
--- input data.
-mapRDDIO ::
-    (Serializable a, Serializable b)
-    => Context
-    -> Closure (a -> IO b)
-    -> RDD a
-    -> RDD b
-mapRDDIO sc action rddA = MapRDDIO action rddA
-       
+-- | Create map RDD from a function closure and base RDD
+mapRDD :: (RDD a b, Serializable c) => Context -> a b -> Closure (b -> c) -> MapRDD a b c
+mapRDD sc base action = MapRDD { _baseM = base, _cFunM = action }
+
+
+-- | RDD representing a IO map between base RDD and a IO function
+data MapRDDIO a b c = MapRDDIO { _baseI :: a b
+                               , _cFunI :: Closure (b -> IO c)
+                               }
+
+-- | Create map RDD from a function closure and base RDD
+mapRDDIO :: (RDD a b, Serializable c) => Context -> a b -> Closure (b -> IO c) -> MapRDDIO a b c
+mapRDDIO sc base action = MapRDDIO { _baseI = base, _cFunI = action }
+
 -- | Split the data into number of partitions
 -- Ensure that number of partitions are limited to maximum number of
 -- elements in the list. Also that an empty list is partitioned into
@@ -81,10 +82,9 @@ splits n xs = splits' ms xs []
     where
       l = length xs
       ms = case l `divMod` n of
-             (0,rm) -> take rm $ repeat 1
-             (m,0)  -> take n  $ repeat m
-             (m,r)  -> take r (repeat (m+1)) ++ take (n-r) (repeat m)
-                             
+             (0,rm) -> replicate rm 1
+             (m,0)  -> replicate n  m
+             (m,r)  -> replicate r (m+1) ++ replicate (n-r) m 
       splits' :: [Int] -> [a] -> [[a]] -> [[a]]
       splits' _ [] rs = reverse rs
       splits' [] _ rs = reverse rs
