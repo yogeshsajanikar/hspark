@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Spark
                      , Spark.RDD
+                     , Spark.XDD
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Task
@@ -45,9 +46,13 @@ test-suite hspark-test
   main-is:             Spec.hs
   build-depends:       base
                      , hspark
+                     , distributed-process
+                     , distributed-static
                      , QuickCheck
+                     , HUnit
                      , test-framework
                      , test-framework-quickcheck2
+                     , test-framework-hunit
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
