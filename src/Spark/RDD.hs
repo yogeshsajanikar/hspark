@@ -46,6 +46,9 @@ class Typeable b => RDD a b where
     -- | Execute the context and get the partitions
     exec :: Context -> a b -> IO (Partitions b)
 
+    -- | Stage the RDD by combining partitions into stages
+    stage :: Context -> a b -> IO (Partitions (Closure b))
+    stage = undefined
 
 data ListRDD b = ListRDD { _listP :: Partitions b }
 
@@ -110,3 +113,5 @@ splits n xs = splits' ms xs []
       splits' [] _ rs = reverse rs
       splits' (m:ms) xs rs = splits' ms qs (ps:rs)
           where (ps,qs) = splitAt m xs
+
+
