@@ -21,3 +21,4 @@ collect sc@(Context _ (Distributed nodes)) = executeDistributed sc nodes
 executeDistributed :: (RDD a b, Serializable b) => Context -> [NodeId] -> a b -> IO [b]
 executeDistributed = undefined
 
+
