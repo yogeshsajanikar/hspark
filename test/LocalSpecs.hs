@@ -3,7 +3,7 @@
 module LocalSpecs where
 
 import Spark.Context
-import Spark.XDD
+import Spark.RDD
 
 import Control.Distributed.Process
 import Control.Distributed.Static
@@ -18,11 +18,12 @@ staticSquare = staticClosure $ staticPtr $ static square
 
 sqMapTest =
     let dt = [1..10]
-        bdd = BDD dt :: BDD Int
-        sqbdd = xmap bdd staticSquare
         sqdt = map square dt
     in do
       sc <- defaultContext
-      let xdr = exec sc sqbdd
+      let rdd = fromListRDD sc 2 dt
+          mdd = mapRDD sc rdd staticSquare 
+      xdr <- collectP <$> exec sc mdd
       sqdt @=? xdr
+
 

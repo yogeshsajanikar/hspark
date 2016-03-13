@@ -14,8 +14,6 @@ module Spark.Context where
   data Context = Context { _lookupTable :: RemoteTable
                          , _strategy :: Strategy
                          }
-  
-
 
   -- | Creates context from slave nodes
   createContextFrom :: [NodeId] -> IO Context

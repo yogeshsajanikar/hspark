@@ -1,6 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 -- |
 -- Module : Spark.RDD
@@ -16,6 +15,7 @@ where
 
 import Spark.Context
 import Control.Distributed.Process
+import Control.Distributed.Static
 import Control.Distributed.Process.Serializable
 import qualified Data.Map as M
 import Data.Typeable
@@ -23,9 +23,17 @@ import Data.Binary
 import GHC.Generics
 import Control.Monad
 
+
 -- | Partioined data, indexed by integers
 newtype Partitions a = Partitions { _dataMaps :: M.Map Int [a] }
     deriving (Show, Generic)
+
+collectP :: Partitions a -> [a]
+collectP (Partitions mp) = concat . map snd . M.toList $ mp
+
+instance Functor Partitions where
+
+    f `fmap` (Partitions mp) = Partitions $ fmap (fmap f) mp
 
 emptyP :: Partitions a
 emptyP = Partitions M.empty
@@ -36,10 +44,14 @@ instance Binary a => Binary (Partitions a)
 class Typeable b => RDD a b where
 
     -- | Execute the context and get the partitions
-    exec :: Context -> a b -> Partitions b
+    exec :: Context -> a b -> IO (Partitions b)
 
 
 data ListRDD b = ListRDD { _listP :: Partitions b }
+
+instance Typeable b => RDD ListRDD b where
+
+    exec sc (ListRDD ps) = return ps
 
 -- | Create an empty RDD
 emptyRDD :: Serializable a => Context -> ListRDD a
@@ -56,6 +68,14 @@ fromListRDD _ n xs = ListRDD $ Partitions partitions
 data MapRDD a b c = MapRDD { _baseM :: a b
                            , _cFunM :: Closure (b -> c)
                            }
+
+instance (RDD a b, Typeable c) => RDD (MapRDD a b) c where
+
+    exec sc mr = case unclosure (_lookupTable sc) (_cFunM mr) of
+                   Right f -> do
+                     ps <- exec sc (_baseM mr)
+                     return $ f <$> ps
+                   Left e  -> error e
 
 -- | Create map RDD from a function closure and base RDD
 mapRDD :: (RDD a b, Serializable c) => Context -> a b -> Closure (b -> c) -> MapRDD a b c
