@@ -5,8 +5,7 @@
 -- Each block is defined by a block of data residing in a process. We
 -- spawn the process on remote nodes, and send the data. Similarly a
 -- mapping stage defines a process that fetches the data from
--- dependent process and holds it till asked by master or another
--- process. 
+-- dependent process and holds it till asked by master or another process.
 module Spark.Block where
 
 import Control.Distributed.Process
@@ -41,8 +40,8 @@ instance Serializable a => Binary (BlockData a)
 -- Stage the data in the process such that it can be fetched by an
 -- appropriate message. 
 
-stage :: Serializable a => ProcessId -> a -> Process ()
-stage master dt = do
+stage :: Serializable a => (ProcessId, a) -> Process ()
+stage (master, dt) = do
   pid <- getSelfPid
   say "Data received .."
   send master pid
@@ -65,7 +64,7 @@ mapStage cs cf = do
   let receiveData (PD xs) = return xs
   dt <- receiveWait [ match receiveData ]
   f  <- unClosure cf
-  stage master (f dt)
+  stage (master, (f dt))
   
 
 -- | Process data, combine it with IO closure map.
@@ -83,5 +82,5 @@ mapStageIO cs cf = do
   dt <-  receiveWait [ match receiveData ]
   f  <-  unClosure cf
   pdt <- liftIO $ f dt
-  stage master pdt
+  stage (master, pdt)
 

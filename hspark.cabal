@@ -28,10 +28,11 @@ library
                      , bytestring
                      , containers
                      , distributed-process
-                     , distributed-static
-                     , distributed-process-task
-                     , network-transport-tcp
                      , distributed-process-client-server
+                     , distributed-process-task
+                     , distributed-static
+                     , network-transport-tcp
+                     , rank1dynamic
   default-language:    Haskell2010
 
 executable hspark-exe
