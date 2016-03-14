@@ -1,4 +1,12 @@
 {-# LANGUAGE DeriveGeneric #-}
+-- |
+-- Module : Spark.Block
+--
+-- Each block is defined by a block of data residing in a process. We
+-- spawn the process on remote nodes, and send the data. Similarly a
+-- mapping stage defines a process that fetches the data from
+-- dependent process and holds it till asked by master or another
+-- process. 
 module Spark.Block where
 
 import Control.Distributed.Process
@@ -76,14 +84,4 @@ mapStageIO cs cf = do
   f  <-  unClosure cf
   pdt <- liftIO $ f dt
   stage master pdt
-  
--- | Used as a seed to send the initial data across cluster
-seed :: Serializable a => ProcessId -> Process a
-seed master = do
-  let receiveData (PD xs) = return xs  -- :: Process BL.ByteString
-  dt <- receiveWait [ match receiveData ]
-  stage master dt
-  return dt
-
-
 

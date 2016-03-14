@@ -1,4 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
+-- |
+-- Module: Spark.Task
+--
 module Spark.Task where
 
 import Control.Distributed.Process hiding (call)

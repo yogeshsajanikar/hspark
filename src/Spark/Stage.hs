@@ -1,3 +1,6 @@
+-- |
+-- Module: Spark.Stage
+--
 module Spark.Stage where
 
 import Spark.RDD

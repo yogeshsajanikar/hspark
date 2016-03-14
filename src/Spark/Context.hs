@@ -1,3 +1,9 @@
+-- |
+-- Module : Spark.Context
+--
+-- Context defines the stratum on which the distributed process will
+-- be based.
+
 module Spark.Context where
 
 import Control.Distributed.Process
