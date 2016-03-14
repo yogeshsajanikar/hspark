@@ -15,7 +15,8 @@ import Spark.Pure.Exec
 -- between. 
 collect :: (RDD a b, Serializable b) => Context -> a b -> IO [b]
 collect sc@(Context _ Pure) = executePure sc
-collect sc@(Context _ (Distributed nodes)) = executeDistributed sc nodes
+collect sc@(Context _ (Distributed master nodes)) = do
+  undefined
 
 
 executeDistributed :: (RDD a b, Serializable b) => Context -> [NodeId] -> a b -> IO [b]

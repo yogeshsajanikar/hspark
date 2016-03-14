@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Spark.Partition where
+module Spark.Block where
 
 import Control.Distributed.Process
 import Control.Distributed.Process.Serializable
@@ -14,7 +14,7 @@ import GHC.Generics
 -- | Partitions represent a data encapsulated in a process
 -- The data can be requested by requesting the process.
 
-newtype Partitions a = Partitions { _blocks :: M.Map Int ProcessId }
+newtype Blocks a = Blocks { _blocks :: M.Map Int ProcessId }
 
 -- | Request the data from a process
 newtype RequestData = RequestData ProcessId
@@ -23,10 +23,10 @@ newtype RequestData = RequestData ProcessId
 instance Binary RequestData
     
 -- | Send the data back
-newtype PartitionData a = PD a
+newtype BlockData a = PD a
     deriving (Typeable, Generic)
 
-instance Serializable a => Binary (PartitionData a)
+instance Serializable a => Binary (BlockData a)
 
 -- | Stage the data in a process
 -- Stage the data in the process such that it can be fetched by an

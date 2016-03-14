@@ -4,7 +4,8 @@ import Control.Distributed.Process
 import Control.Distributed.Static
 
 data Strategy = Pure
-              | Distributed { slaveNodes :: [NodeId] }
+              | Distributed { masterNode :: NodeId
+                            , slaveNodes :: [NodeId] }
 
 -- | Context for creating spark workflow.
 -- Defines the context for processing RDD tasks. The context stores
@@ -17,8 +18,8 @@ data Context = Context { _lookupTable :: RemoteTable
 
 -- | Creates context from slave nodes
 
-createContextFrom :: [NodeId] -> IO Context
-createContextFrom = return . Context initRemoteTable . Distributed
+createContextFrom :: NodeId -> [NodeId] -> IO Context
+createContextFrom master = return . Context initRemoteTable . Distributed master
                  
 -- | Creates the context.
 -- Note that there can only one context in the given cluster. This

@@ -22,6 +22,7 @@ import Data.Typeable
 import Data.Binary
 import GHC.Generics
 import Control.Monad
+import Spark.Block
 
 
 -- | Partioined data, indexed by integers
@@ -46,15 +47,19 @@ class Typeable b => RDD a b where
     -- | Execute the context and get the partitions
     exec :: Context -> a b -> IO (Partitions b)
 
-    -- | Stage the RDD by combining partitions into stages
-    stage :: Context -> a b -> IO (Partitions (Closure b))
-    stage = undefined
+    flow :: ProcessId -> Context -> a b -> Process (Blocks b)
+    flow = undefined
+
 
 data ListRDD b = ListRDD { _listP :: Partitions b }
 
 instance Typeable b => RDD ListRDD b where
 
     exec sc (ListRDD ps) = return ps
+
+    flow master sc (ListRDD ps) = do
+      undefined
+      
 
 -- | Create an empty RDD
 emptyRDD :: Serializable a => Context -> ListRDD a

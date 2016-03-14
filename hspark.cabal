@@ -19,7 +19,7 @@ library
                      , Spark.RDD
                      , Spark.Context
                      , Spark.Executor
-                     , Spark.Partition
+                     , Spark.Block
                      , Spark.Task
                      , Spark.Pure.Exec
   build-depends:       base >= 4.7 && < 5
