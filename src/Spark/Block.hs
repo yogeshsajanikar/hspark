@@ -9,6 +9,7 @@ import Control.Monad
 import Data.Typeable
 import Data.Binary
 import GHC.Generics
+import qualified Data.ByteString.Lazy as BL
 
 
 -- | Partitions represent a data encapsulated in a process
@@ -76,3 +77,13 @@ mapStageIO cs cf = do
   pdt <- liftIO $ f dt
   stage master pdt
   
+-- | Used as a seed to send the initial data across cluster
+seed :: Serializable a => ProcessId -> Process a
+seed master = do
+  let receiveData (PD xs) = return xs  -- :: Process BL.ByteString
+  dt <- receiveWait [ match receiveData ]
+  stage master dt
+  return dt
+
+
+
