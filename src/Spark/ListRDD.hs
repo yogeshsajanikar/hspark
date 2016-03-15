@@ -52,11 +52,12 @@ data SeedRDD b = SeedRDD { _divisions :: Int
                          }
 
 partitions :: Context -> Maybe Int -> Int
-partitions sc Nothing | n <= 0    = error "Number of partitions must be > 0"
+partitions sc Nothing | n <= 0    =  error "Number of partitions must be > 0"
                       | otherwise = n
     where 
       n = length . slaveNodes . _strategy $ sc
-
+partitions sc (Just n) | n <= 0    = error "Number of partitions must be > 0"
+                       | otherwise = n
 
 seedRDD :: Context -> Maybe Int -> Static (SerializableDict [a]) -> Closure [a] -> SeedRDD a
 seedRDD sc ps dict inps = SeedRDD n inps dict
@@ -76,6 +77,9 @@ matchFetch SerializableDict = match
 
 sendSeed :: SerializableDict a -> ProcessId -> a -> Process ()
 sendSeed SerializableDict = send
+
+sendFetch :: SerializableDict a -> ProcessId -> Fetch a -> Process ()
+sendFetch SerializableDict = send
 
 seed :: SerializableDict [a] -> Process ()
 seed sdict = do
@@ -99,6 +103,7 @@ instance Serializable b => RDD SeedRDD b where
     exec = undefined
 
     flow sc (SeedRDD n seeds dict) = do
+      say "Opening seed data"
       inpData <- unClosure seeds
       
       let ps = splits n inpData
@@ -110,6 +115,7 @@ instance Serializable b => RDD SeedRDD b where
       --
       pids <- forM slavedata $ \(nid, dt) -> do
           pid <- spawn nid (seedClosure dict)
+          send pid dt 
           return pid
 
       return $ Blocks $ M.fromList (zip [0..] pids)

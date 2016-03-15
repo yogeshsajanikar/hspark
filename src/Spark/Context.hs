@@ -23,8 +23,8 @@ data Context = Context { _lookupTable :: RemoteTable
 
 -- | Creates context from slave nodes
 
-createContextFrom :: NodeId -> [NodeId] -> IO Context
-createContextFrom master = return . Context initRemoteTable . Distributed master
+createContextFrom :: RemoteTable -> NodeId -> [NodeId] -> IO Context
+createContextFrom rt master = return . Context rt . Distributed master
                  
 -- | Creates the context.
 -- Note that there can only one context in the given cluster. This

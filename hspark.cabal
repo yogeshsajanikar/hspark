@@ -49,10 +49,12 @@ test-suite hspark-test
   hs-source-dirs:      test
   main-is:             Spec.hs
   other-modules:       LocalSpecs
+                     , StageSpec
   build-depends:       base
                      , hspark
                      , distributed-process
                      , distributed-static
+                     , network-transport-tcp
                      , QuickCheck
                      , HUnit
                      , test-framework

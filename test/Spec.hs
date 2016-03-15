@@ -6,6 +6,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.Framework.Providers.HUnit
 import Spark.RDD
 import LocalSpecs
+import StageSpec
 
 -- | Splits into number of partitions, the number of partitions
 -- are limited to cardinality of the input. Each partition can
@@ -24,6 +25,7 @@ prop_Splits (Positive n,ps) =
 main :: IO ()
 main = defaultMain [
         testProperty "splits" prop_Splits
+       ,testCase "stage data" stageTest
        -- , testCase "square map" sqMapTest
        ]
            
