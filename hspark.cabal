@@ -52,6 +52,7 @@ test-suite hspark-test
   main-is:             Spec.hs
   other-modules:       LocalSpecs
                      , StageSpec
+                     , MapSpec
   build-depends:       base
                      , hspark
                      , distributed-process

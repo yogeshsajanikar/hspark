@@ -89,5 +89,8 @@ instance (RDD a b, Serializable c) => RDD (MapRDDIO a b) c where
       mpids <- forM (M.toList pmap) $ \(i, pid) -> do
                   (Just pi) <- getProcessInfo pid
                   spawn (infoNode pi) (rddIOMapClosure (rddDictS base) tdict (i, pid)  cfun )
+
+      -- close the process
+      mapM_ (\pid -> send pid () ) pmap
                         
       return $ Blocks $ M.fromList (zip [0..] mpids)
