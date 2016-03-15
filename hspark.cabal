@@ -18,6 +18,7 @@ library
   exposed-modules:     Spark
                      , Spark.RDD
                      , Spark.SeedRDD
+                     , Spark.MapRDD
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Block

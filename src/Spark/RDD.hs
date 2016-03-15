@@ -43,33 +43,22 @@ emptyP = Partitions M.empty
 instance Binary a => Binary (Partitions a)
 
 -- | RDD aka Resilient Distributed Data
-class Typeable b => RDD a b where
+class Serializable b => RDD a b where
 
     -- | Execute the context and get the partitions
     exec :: Context -> a b -> IO (Partitions b)
 
+    rddDictS :: a b -> Static (SerializableDict [b])
+    rddDictS = undefined
+
+    rddDict :: a b -> SerializableDict [b]
+    rddDict = undefined
+                            
     flow :: Context -> a b -> Process (Blocks b)
     flow = undefined
 
 data RDDDict a b where
     RDDDict :: forall a b . RDD a b => RDDDict a b
-
--- | RDD representing a pure map between a base with a function
-data MapRDD a b c = MapRDD { _baseM :: a b
-                           , _cFunM :: Closure (b -> c)
-                           }
-
-instance (RDD a b, Typeable c) => RDD (MapRDD a b) c where
-
-    exec sc mr = case unclosure (_lookupTable sc) (_cFunM mr) of
-                   Right f -> do
-                     ps <- exec sc (_baseM mr)
-                     return $ f <$> ps
-                   Left e  -> error e
-
--- | Create map RDD from a function closure and base RDD
-mapRDD :: (RDD a b, Serializable c) => Context -> a b -> Closure (b -> c) -> MapRDD a b c
-mapRDD sc base action = MapRDD { _baseM = base, _cFunM = action }
 
 
 -- | RDD representing a IO map between base RDD and a IO function

@@ -4,7 +4,24 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE KindSignatures #-}
 
-module Spark.SeedRDD where
+module Spark.SeedRDD
+    (
+     -- * Seed RDD
+     SeedRDD(),
+     seedRDD,
+     -- * Interaction with seeded process
+     Fetch (..),
+     matchFetch,
+     sendFetch,
+     matchSeed,
+     sendSeed,
+     -- * Closures and Seed Process
+     seed,
+     seedClosure,
+     -- * Remote Table
+     __remoteTable
+    )
+where
 
     
 import Spark.Context
@@ -24,6 +41,8 @@ import Control.Monad
     
 
 -- | Seed RDD
+-- Typically a starting point of the workflow. Divides the input data
+-- into partitions 
 
 data SeedRDD b = SeedRDD { _divisions :: Int
                          ,_seed :: Closure [b]
@@ -60,6 +79,8 @@ sendSeed SerializableDict = send
 sendFetch :: SerializableDict a -> ProcessId -> Fetch a -> Process ()
 sendFetch SerializableDict = send
 
+-- | Seed receives the data, and keeps it for further reference.
+-- One can receive the data back when asked for
 seed :: SerializableDict [a] -> Process ()
 seed sdict = do
   dt <- receiveWait [ matchSeed sdict $ \xs -> do
@@ -81,6 +102,8 @@ seed sdict = do
 
 remotable ['seed ]
 
+-- | Closure around seed
+-- Seed closure is used spawn the seeding process
 seedClosure :: Serializable a => Static (SerializableDict [a]) -> Closure (Process ())
 seedClosure sdict = staticClosure ($(mkStatic 'seed) `staticApply` sdict)
 
@@ -88,6 +111,13 @@ instance Serializable b => RDD SeedRDD b where
 
     exec = undefined
 
+    -- | Serializable dictionary of the target
+    rddDict sc = SerializableDict
+
+    -- | Startic decoder
+    rddDictS = _dict
+
+    -- | Control flow of the RDD
     flow sc (SeedRDD n seeds dict) = do
       say "Opening seed data"
       inpData <- unClosure seeds
