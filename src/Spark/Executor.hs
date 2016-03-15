@@ -23,7 +23,6 @@ import Spark.Pure.Exec
 -- pipelined, whereas reduce stage typically would need a shuffle in
 -- between. 
 collect :: (RDD a b, Serializable b) => Context -> a b -> IO [b]
-collect sc@(Context _ Pure) = executePure sc
 collect sc@(Context _ (Distributed master nodes)) = do
   undefined
 

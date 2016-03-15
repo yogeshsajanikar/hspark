@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes, GADTs #-}
 -- |
 -- Module : Spark.RDD
 --
@@ -47,29 +48,11 @@ class Typeable b => RDD a b where
     -- | Execute the context and get the partitions
     exec :: Context -> a b -> IO (Partitions b)
 
-    flow :: ProcessId -> Context -> a b -> Process (Blocks b)
+    flow :: Context -> a b -> Process (Blocks b)
     flow = undefined
 
-
-data ListRDD b = ListRDD { _listP :: Partitions b }
-
-instance Typeable b => RDD ListRDD b where
-
-    exec sc (ListRDD ps) = return ps
-
-    flow master sc (ListRDD ps) = do undefined
-      --return . Blocks . M.map stage master $ _dataMaps ps
-
--- | Create an empty RDD
-emptyRDD :: Serializable a => Context -> ListRDD a
-emptyRDD _ = ListRDD emptyP
-
--- | Create RDD from the data itself
-fromListRDD :: Serializable a => Context -> Int -> [a] -> ListRDD a
-fromListRDD _ n xs = ListRDD $ Partitions partitions
-    where
-      partitions = M.fromList ps
-      ps = zip [0..] $ splits n xs
+data RDDDict a b where
+    RDDDict :: forall a b . RDD a b => RDDDict a b
 
 -- | RDD representing a pure map between a base with a function
 data MapRDD a b c = MapRDD { _baseM :: a b

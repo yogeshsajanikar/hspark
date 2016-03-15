@@ -9,8 +9,7 @@ module Spark.Context where
 import Control.Distributed.Process
 import Control.Distributed.Static
 
-data Strategy = Pure
-              | Distributed { masterNode :: NodeId
+data Strategy = Distributed { masterNode :: NodeId
                             , slaveNodes :: [NodeId] }
 
 -- | Context for creating spark workflow.
@@ -32,13 +31,6 @@ createContextFrom master = return . Context initRemoteTable . Distributed master
 -- is not enforced yet, and creationg more than one context is not
 -- tested either.
 
-createContext :: IO Context
-createContext = undefined
 
--- | Create pure context
--- The RDD will run as a normal haskell program.
-
-defaultContext :: IO Context
-defaultContext = return $ Context initRemoteTable Pure
 
 

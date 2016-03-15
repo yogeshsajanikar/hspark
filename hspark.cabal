@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Spark
                      , Spark.RDD
+                     , Spark.ListRDD
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Block
