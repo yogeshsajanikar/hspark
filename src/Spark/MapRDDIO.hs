@@ -4,7 +4,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE KindSignatures #-}
 
-module Spark.MapRDDIO where
+module Spark.MapRDDIO
+    (
+    -- * Map RDD
+    MapRDDIO (),
+    mapRDDIO,
+    -- * Remote Table
+    __remoteTable
+    )
+where
 
     
 import Spark.Context
@@ -31,13 +39,13 @@ data MapRDDIO a b c = MapRDDIO { _baseM :: a b
 
 
 -- | Create map RDD from a function closure and base RDD
-maprddIO :: (RDD a b, Serializable c) =>
+mapRDDIO :: (RDD a b, Serializable c) =>
             Context
          -> a b
          -> Static (SerializableDict [c])
          -> Closure (b -> IO c)
          -> MapRDDIO a b c
-maprddIO sc base dict action = MapRDDIO { _baseM = base, _cFunM = action, _tdict = dict }
+mapRDDIO sc base dict action = MapRDDIO { _baseM = base, _cFunM = action, _tdict = dict }
 
 
 rddIOMap :: SerializableDict [a]

@@ -9,6 +9,8 @@ import Spark.SeedRDD
 import Spark.MapRDD
 import Spark.RDD
 
+import Data.List (sort)
+
 import Control.Distributed.Process
 import Control.Distributed.Static hiding (initRemoteTable)
 import Control.Distributed.Process.Closure
@@ -71,7 +73,7 @@ mapTest t =
 
       os <- takeMVar out
       let squares = map square dt
-      squares @=? os
+      (sort squares) @=? (sort os)
             
 
       

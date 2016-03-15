@@ -8,9 +8,10 @@ import Spark.RDD
 import LocalSpecs
 import StageSpec
 import MapSpec
+import MapIOSpec
 
 -- | Splits into number of partitions, the number of partitions
--- are limited to cardinality of the input. Each partition can
+-- are limited t=-o cardinality of the input. Each partition can
 -- have size at least $m$ or $m+1$, where $m = input_length / n$. 
 prop_Splits :: (Positive Int,[Int]) -> Property
 prop_Splits (Positive n,ps) =
@@ -28,8 +29,9 @@ main = do
   t <- testTransport 
   defaultMain [
          testProperty "splits" prop_Splits
-       , testCase "seed rdd" (stageTest t)
-       , testCase "map rdd" (mapTest t)
+       , testCase "mapIO rdd" (mapIOTest t)
+       , testCase "seed rdd"  (stageTest t)
+       , testCase "map rdd"   (mapTest t)
        -- , testCase "square map" sqMapTest
        ]
            
