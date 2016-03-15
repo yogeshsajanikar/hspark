@@ -38,8 +38,6 @@ import GHC.Generics
 import Data.Binary
 import Control.Monad
 
-    
-
 -- | Seed RDD
 -- Typically a starting point of the workflow. Divides the input data
 -- into partitions 

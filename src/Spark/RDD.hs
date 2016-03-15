@@ -60,16 +60,6 @@ class Serializable b => RDD a b where
 data RDDDict a b where
     RDDDict :: forall a b . RDD a b => RDDDict a b
 
-
--- | RDD representing a IO map between base RDD and a IO function
-data MapRDDIO a b c = MapRDDIO { _baseI :: a b
-                               , _cFunI :: Closure (b -> IO c)
-                               }
-
--- | Create map RDD from a function closure and base RDD
-mapRDDIO :: (RDD a b, Serializable c) => Context -> a b -> Closure (b -> IO c) -> MapRDDIO a b c
-mapRDDIO sc base action = MapRDDIO { _baseI = base, _cFunI = action }
-
 -- | Split the data into number of partitions
 -- Ensure that number of partitions are limited to maximum number of
 -- elements in the list. Also that an empty list is partitioned into

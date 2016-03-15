@@ -19,6 +19,7 @@ library
                      , Spark.RDD
                      , Spark.SeedRDD
                      , Spark.MapRDD
+                     , Spark.MapRDDIO
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Block

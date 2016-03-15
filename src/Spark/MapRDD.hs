@@ -4,12 +4,23 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE KindSignatures #-}
 
-module Spark.MapRDD where
+module Spark.MapRDD
+    (
+    -- * Map RDD
+    MapRDD (),
+    mapRDD,
+    -- * Helpers
+    partitionPair,
+    -- * Remote Table
+    __remoteTable
+    )
+
+where
 
     
 import Spark.Context
 import Spark.RDD
-import Spark.SeedRDD
+import Spark.SeedRDD hiding (__remoteTable)
 import Spark.Block
 
 import Control.Distributed.Process
