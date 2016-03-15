@@ -1,4 +1,5 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 -- |
 -- Module : Spark.Static
 --
@@ -11,6 +12,7 @@
 module Spark.Static where
 
 import Control.Distributed.Process
+import Control.Distributed.Process.Closure
 import Control.Distributed.Process.Serializable
 import Control.Distributed.Static
 import Data.Rank1Typeable
@@ -20,29 +22,20 @@ import Data.Typeable
 import Data.Binary
 import Data.ByteString.Lazy
 
-data BinaryDict a where
-  BinaryDict :: Binary a => BinaryDict a
+stageDict :: SerializableDict a -> (ProcessId, a) -> Process ()
+stageDict SerializableDict = stage
 
-stageDict :: Typeable a => BinaryDict a -> (ProcessId, a) -> Process ()
-stageDict BinaryDict = stage
-
-decodeDict :: BinaryDict a -> ByteString -> a
-decodeDict dict = decode
-
-stageDictStatic :: Static (BinaryDict a -> (ProcessId, a) -> Process ())
+stageDictStatic :: Static (SerializableDict a -> (ProcessId, a) -> Process ())
 stageDictStatic = staticLabel "$stage"
 
-decodeDictStatic :: Static (BinaryDict a -> ByteString -> a)
-decodeDictStatic = staticLabel "$decode" 
+-- remoteTable =
+--     registerStatic "$stage"  (toDynamic (stageDict :: SerializableDict ANY -> (ProcessId, ANY) -> Process ()))
+--   $ initRemoteTable
 
-remoteTable =
-    registerStatic "$stage"  (toDynamic (stageDict :: BinaryDict ANY -> (ProcessId, ANY) -> Process ()))
-  . registerStatic "$decode" (toDynamic (decodeDict :: BinaryDict ANY -> ByteString -> ANY))
-  $ initRemoteTable
+remotable ['stageDictStatic]
 
-
-stageClosure :: Serializable a => Static (BinaryDict a) -> Closure ((ProcessId, a) -> Process ())
-stageClosure dict = staticClosure decoder 
+stageClosure :: Typeable a => Static (SerializableDict a) -> Closure ((ProcessId, a) -> Process ())
+stageClosure dict = staticClosure (decoder dict)
     where
-      --decoder :: Static (ByteString -> (ProcessId, a) -> Process () )
-      decoder = (stageDictStatic `staticApply` dict) 
+      decoder :: Static (SerializableDict a) -> Static ((ProcessId, a) -> Process ())
+      decoder dict = (stageDictStatic `staticApply` dict)

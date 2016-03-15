@@ -24,6 +24,6 @@ prop_Splits (Positive n,ps) =
 main :: IO ()
 main = defaultMain [
         testProperty "splits" prop_Splits
-       , testCase "square map" sqMapTest
+       -- , testCase "square map" sqMapTest
        ]
            
