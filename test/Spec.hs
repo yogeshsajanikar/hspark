@@ -24,10 +24,12 @@ prop_Splits (Positive n,ps) =
     
     
 main :: IO ()
-main = defaultMain [
+main = do
+  t <- testTransport 
+  defaultMain [
          testProperty "splits" prop_Splits
-       , testCase "map rdd" stageTest
-       , testCase "map rdd" mapTest
+       , testCase "seed rdd" (stageTest t)
+       , testCase "map rdd" (mapTest t)
        -- , testCase "square map" sqMapTest
        ]
            

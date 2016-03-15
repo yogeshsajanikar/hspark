@@ -42,10 +42,10 @@ mapRemoteTable = Spark.SeedRDD.__remoteTable
                . MapSpec.__remoteTable
                $ initRemoteTable
 
-mapTest =
+mapTest t =
     let dt = [1..10] :: [Int]
     in do
-      Right t <- createTransport "127.0.0.1" "10501" defaultTCPParameters
+      --Right t <- createTransport "127.0.0.1" "10501" defaultTCPParameters
       node  <- newLocalNode t mapRemoteTable
       slave0 <- newLocalNode t mapRemoteTable
       slave1 <- newLocalNode t mapRemoteTable

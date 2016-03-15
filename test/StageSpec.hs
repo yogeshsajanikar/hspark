@@ -33,10 +33,13 @@ stageRemoteTable = Spark.SeedRDD.__remoteTable
                  . StageSpec.__remoteTable
                  $ initRemoteTable
 
-stageTest =
+testTransport = do
+  Right t <- createTransport "127.0.0.1" "10501" defaultTCPParameters
+  return t
+         
+stageTest t =
     let dt = [1..10] :: [Int]
     in do
-      Right t <- createTransport "127.0.0.1" "10501" defaultTCPParameters
       node  <- newLocalNode t stageRemoteTable
       slave0 <- newLocalNode t stageRemoteTable
       slave1 <- newLocalNode t stageRemoteTable
