@@ -17,6 +17,7 @@ import Network.Transport.TCP (createTransport, defaultTCPParameters)
 import Test.Framework.Providers.HUnit
 import Test.HUnit
 
+import Control.Concurrent
 import Control.Concurrent.MVar
 
 
@@ -49,7 +50,11 @@ stageTest =
             sendFetch (SerializableDict :: SerializableDict [Int]) pid (Fetch thispid) ) pmap
          xss <- mapM (\ _ ->
             receiveWait [
-             matchSeed (SerializableDict :: SerializableDict [Int]) $ \xs -> return xs ] ) pmap
+             matchSeed (SerializableDict :: SerializableDict [Int]) $ \xs -> do
+               --say $ "Length : " ++ show (length xs)
+               return xs ] ) pmap
+         mapM_ (\ pid -> send pid () ) pmap
+         liftIO $ threadDelay 100000
          liftIO $ putMVar out (concat xss)
 
       os <- takeMVar out

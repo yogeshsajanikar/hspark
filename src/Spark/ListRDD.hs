@@ -83,14 +83,21 @@ sendFetch SerializableDict = send
 
 seed :: SerializableDict [a] -> Process ()
 seed sdict = do
-  dt <- receiveWait [ matchSeed sdict $ \xs -> return (Just xs)
-                    , match $ \() -> return Nothing ]
+  dt <- receiveWait [ matchSeed sdict $ \xs -> do
+                        say "Received seed data"
+                        return (Just xs)
+                    , match $ \() -> do
+                        say "Did not receive data, closing"
+                        return Nothing ]
   case dt of
     Nothing -> return ()
     Just xs -> receiveWait [ matchFetch sdict $ \(Fetch pid) -> do
+                               say "Sending data back"
                                sendSeed sdict pid xs
                                return ()
-                           , match $ \() -> return () 
+                           , match $ \() -> do
+                               say "Closing seed store"
+                               return () 
                            ]
 
 remotable ['seed ]
