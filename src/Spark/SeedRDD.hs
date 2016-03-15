@@ -4,7 +4,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE KindSignatures #-}
 
-module Spark.ListRDD where
+module Spark.SeedRDD where
 
     
 import Spark.Context
@@ -22,27 +22,6 @@ import Data.Binary
 import Control.Monad
 
     
-
-data ListRDD b = ListRDD { _listP :: Partitions b }
-
--- | Create an empty RDD
-emptyRDD :: Serializable a => Context -> ListRDD a
-emptyRDD _ = ListRDD emptyP
-
--- | Create RDD from the data itself
-fromListRDD :: Serializable a => Context -> Int -> [a] -> ListRDD a
-fromListRDD _ n xs = ListRDD $ Partitions partitions
-    where
-      partitions = M.fromList ps
-      ps = zip [0..] $ splits n xs
-
-
-instance Typeable b => RDD ListRDD b where
-
-    exec sc (ListRDD ps) = return ps
-
-    flow sc (ListRDD ps) = do
-      undefined
 
 -- | Seed RDD
 

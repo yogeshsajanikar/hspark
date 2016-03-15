@@ -5,7 +5,7 @@ module StageSpec where
 import Spark.Context
 import Spark.Block
 --import Spark.Static
-import Spark.ListRDD
+import Spark.SeedRDD
 import Spark.RDD
 
 import Control.Distributed.Process
@@ -29,7 +29,7 @@ input = id
 
 remotable ['iDict, 'input]
     
-stageRemoteTable = Spark.ListRDD.__remoteTable
+stageRemoteTable = Spark.SeedRDD.__remoteTable
                  . StageSpec.__remoteTable
                  $ initRemoteTable
 

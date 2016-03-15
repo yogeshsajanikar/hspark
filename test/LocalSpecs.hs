@@ -21,7 +21,7 @@ import Test.HUnit
 --         sqdt = map square dt
 --     in do
 --       sc <- defaultContext
---       let rdd = fromListRDD sc 2 dt
+--       let rdd = fromSeedRDD sc 2 dt
 --           mdd = mapRDD sc rdd staticSquare 
 --       xdr <- collectP <$> exec sc mdd
 --       sqdt @=? xdr
