@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric, DeriveDataTypeable, GADTs #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 
--- {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- {-# LANGUAGE TemplateHaskell #-}
 -- {-# LANGUAGE KindSignatures #-}
 -- {-# LANGUAGE RankNTypes #-}
@@ -27,11 +27,11 @@ import GHC.Generics
 import Data.Binary
 import Control.Monad
 
-data ReduceRDD a k v = ReduceRDD { _baseM :: a (k,v)
-                                 , _cFun  :: Closure (v -> v -> v)
-                                 , _pFun  :: Closure (k -> Int)
-                                 , _tdict :: Static (SerializableDict [(k,v)])
-                                 }
+data ReduceRDD a k v b = ReduceRDD { _baseM :: a (k,v)
+                                   , _cFun  :: Closure (v -> v -> v)
+                                   , _pFun  :: Closure (k -> Int)
+                                   , _tdict :: Static (SerializableDict [(k,v)])
+                                   }
 
 
 -- | ReduceRDD takes a base RDD that produces a pair, and reduces it per key
@@ -47,7 +47,7 @@ reduceRDD :: (RDD a (k,v), Ord k, Serializable k, Serializable v) =>
           -> Static (SerializableDict [(k,v)] )
           -> Closure (v -> v -> v)
           -> Closure (k -> Int)
-          -> ReduceRDD a k v
+          -> ReduceRDD a k v (k,v)
 reduceRDD sc base dict combiner partitioner =
     ReduceRDD base combiner partitioner dict
 
@@ -158,3 +158,8 @@ reduceStep2Closure dictk dictkv ipid combiner =
                     `staticCompose` staticDecode $(mkStatic 'partitionedPids)
 
 
+instance RDD a (k,v) => RDD (ReduceRDD a k v) (k,v) where
+
+    exec = undefined
+
+    flow = undefined
