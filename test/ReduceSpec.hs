@@ -85,6 +85,7 @@ reduceTest t = do
       liftIO $ putMVar out output
       liftIO $ putStrLn $ show output
 
+  closeContext (master, slaves)
   os <- takeMVar out
   let expected  = M.toList $ M.fromListWith (+) inp
       actual = sortBy ( \(k1,_) (k2,_) -> compare k1 k2) os

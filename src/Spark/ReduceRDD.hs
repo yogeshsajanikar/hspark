@@ -94,12 +94,20 @@ reduceStep1 dictk dictkv (n, pid) combiner partitioner = do
              Just xs -> rFromList dictk combiner xs
              Nothing -> M.empty
 
-  -- Serve all the keys for given partition.
-  receiveWait [ match $ \(FetchPartition p sid) -> do
-                  let kvs = M.toList $ M.filterWithKey (\k _ -> partitioner k `mod` n == p ) mp
-                  sendKV dictkv sid kvs
-              , match $ \() -> return () 
-              ]
+  let go False = return ()
+      go True  = do
+        result <- receiveWait [ match $ \(FetchPartition p sid) -> do
+                                  let kvs = M.toList $ M.filterWithKey (\k _ -> partitioner k `mod` n == p ) mp
+                                  sendKV dictkv sid kvs
+                                  return True
+                              , match $ \() -> return False
+                              ]
+        go result
+
+  -- Serve all the keys for given partition. Keep serving till
+  -- we receive termination message
+  go True
+
 
 expectKV :: SerializableDict [(k,v)] -> Process [(k,v)]
 expectKV SerializableDict = expect
@@ -175,6 +183,7 @@ instance (Ord k, Serializable k, Serializable v, RDD a (k,v)) => RDD (ReduceRDD 
     rddDict _ = SerializableDict
                 
     flow sc (ReduceRDD base combiner partitioner dictkv dictk) = do
+        say "Starting reduction"
         -- Get the process IDs of the base process
         (Blocks pmap) <- flow sc base
 
@@ -182,13 +191,14 @@ instance (Ord k, Serializable k, Serializable v, RDD a (k,v)) => RDD (ReduceRDD 
             p = M.size pmap -- Size of the partitions
             n = length slaves
 
-
+        say "Receivd parent blocks from base stage"
         -- Do two step reduction
         -- In the first step, do local reduction, i.e. 
         mpids <- forM (M.toList pmap) $ \(i, pid) -> do
                     (Just pi) <- getProcessInfo pid
                     spawn (infoNode pi) (reduceStep1Closure dictk dictkv (p, pid) combiner partitioner)
 
+        say "Reduction stage 1 spawned"
         -- For the second step, all the process ids are sent to 
         let step1pids  = zip [0..] mpids 
             slavenodes = zip [0..] (take p $ concat (repeat slaves)) 
