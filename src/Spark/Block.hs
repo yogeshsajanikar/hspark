@@ -43,7 +43,7 @@ instance Serializable a => Binary (BlockData a)
 stage :: Serializable a => (ProcessId, a) -> Process ()
 stage (master, dt) = do
   pid <- getSelfPid
-  say "Data received .."
+  -- say "Data received .."
   send master pid
 
   let sendData (RequestData pid)= send pid (PD dt)

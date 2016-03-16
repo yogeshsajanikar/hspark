@@ -18,7 +18,6 @@ where
 import Spark.Context
 import Spark.RDD
 import Spark.SeedRDD hiding (__remoteTable)
-import Spark.MapRDD hiding (__remoteTable)
 import Spark.Block
 
 import Control.Distributed.Process
@@ -93,12 +92,13 @@ instance (RDD a b, Serializable c) => RDD (MapRDDIO a b) c where
       -- Get the process IDs of the base process
       (Blocks pmap) <- flow sc base
 
+      say "MapRDDIO : Map IO Stage"
       -- For each process, try to spawn process on the same node.
       mpids <- forM (M.toList pmap) $ \(i, pid) -> do
                   (Just pi) <- getProcessInfo pid
                   spawn (infoNode pi) (rddIOMapClosure (rddDictS base) tdict (i, pid)  cfun )
 
       -- close the process
-      mapM_ (\pid -> send pid () ) pmap
+      -- mapM_ (\pid -> send pid () ) pmap
                         
       return $ Blocks $ M.fromList (zip [0..] mpids)

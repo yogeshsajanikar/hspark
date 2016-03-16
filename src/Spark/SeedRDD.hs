@@ -82,19 +82,19 @@ sendFetch SerializableDict = send
 seed :: SerializableDict [a] -> Process ()
 seed sdict = do
   dt <- receiveWait [ matchSeed sdict $ \xs -> do
-                        say "Received seed data"
+                        -- say "Received seed data"
                         return (Just xs)
                     , match $ \() -> do
-                        say "Did not receive data, closing"
+                        -- say "Did not receive data, closing"
                         return Nothing ]
   case dt of
     Nothing -> return ()
     Just xs -> receiveWait [ matchFetch sdict $ \(Fetch pid) -> do
-                               say "Sending data back"
+                               -- say "Sending data back"
                                sendSeed sdict pid xs
                                return ()
                            , match $ \() -> do
-                               say "Closing seed store"
+                               -- say "Closing seed store"
                                return () 
                            ]
 
@@ -117,7 +117,7 @@ instance Serializable b => RDD SeedRDD b where
 
     -- | Control flow of the RDD
     flow sc (SeedRDD n seeds dict) = do
-      say "Opening seed data"
+      -- say "Opening seed data"
       inpData <- unClosure seeds
       
       let ps = splits n inpData

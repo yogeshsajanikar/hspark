@@ -72,7 +72,7 @@ mapIOTest t =
          mapM_ (\ pid -> send pid () ) pmap
          let output = concat xss
          liftIO $ putMVar out output
-         liftIO $ putStrLn $ show output
+         liftIO $ putStrLn $ "Output: " ++ (show output)
 
       os <- takeMVar out
       let squares = map square dt
