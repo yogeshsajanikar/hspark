@@ -9,6 +9,7 @@ import LocalSpecs
 import StageSpec
 import MapSpec
 import MapIOSpec
+import ReduceSpec
 
 -- | Splits into number of partitions, the number of partitions
 -- are limited t=-o cardinality of the input. Each partition can
@@ -28,10 +29,11 @@ main :: IO ()
 main = do
   t <- testTransport 
   defaultMain [
-         testProperty "splits" prop_Splits
-       , testCase "mapIO rdd" (mapIOTest t)
-       , testCase "seed rdd"  (stageTest t)
-       , testCase "map rdd"   (mapTest t)
+         testProperty "splits"  prop_Splits
+       , testCase "mapIO rdd"  (mapIOTest t)
+       , testCase "seed rdd"   (stageTest t)
+       , testCase "map rdd"    (mapTest t)
+       , testCase "reduce rdd" (reduceTest t)
        -- , testCase "square map" sqMapTest
        ]
            

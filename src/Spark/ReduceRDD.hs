@@ -11,7 +11,8 @@ module Spark.ReduceRDD
     (
      ReduceRDD(),
      reduceRDD,
-     __remoteTable
+     __remoteTable,
+     OrdDict(..)
     )
 
 where

@@ -1,15 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StaticPointers #-}
 
-module MapSpec where
+module ReduceSpec where
 
-import Spark.Context
-import Spark.Block
-import Spark.SeedRDD
-import Spark.MapRDD
-import Spark.RDD
-
-import Data.List (sort)
+import Spark
+import qualified Data.Map as M
+import Data.List (sortBy)
 
 import Control.Distributed.Process
 import Control.Distributed.Static hiding (initRemoteTable)
@@ -23,58 +19,74 @@ import Test.HUnit
 import Control.Concurrent
 import Control.Concurrent.MVar
 
+import System.Random
 
-iDict :: SerializableDict [Int]
-iDict = SerializableDict
+-- For output
+iDictKV :: SerializableDict [(Int,Int)]
+iDictKV = SerializableDict
 
+-- Key requires ordering
+dictK :: OrdDict Int
+dictK = OrdDict
 
-square :: Int -> Int
-square x = x * x
+-- Add the values to find the sum
+combine :: Int -> Int -> Int
+combine = (+)
 
-staticSquare :: Closure (Int -> Int)
-staticSquare = staticClosure $ staticPtr $ static square
-    
-input :: [Int] -> [Int]
+-- Generated inputs are in the same range, just return the same key
+-- Else, we should have been including hash
+partitioner :: Int -> Int
+partitioner = id
+              
+input :: [(Int,Int)] -> [(Int,Int)]
 input = id
 
-remotable ['iDict, 'input]
+remotable ['iDictKV, 'dictK, 'input, 'partitioner, 'combine]
     
-mapRemoteTable = Spark.SeedRDD.__remoteTable
-               . Spark.MapRDD.__remoteTable
-               . MapSpec.__remoteTable
+mapRemoteTable = Spark.remoteTable
+               . ReduceSpec.__remoteTable
                $ initRemoteTable
 
-mapTest t =
-    let dt = [1..10] :: [Int]
-    in do
-      --Right t <- createTransport "127.0.0.1" "10501" defaultTCPParameters
-      node  <- newLocalNode t mapRemoteTable
+createNodes t = do
+      node   <- newLocalNode t mapRemoteTable
       slave0 <- newLocalNode t mapRemoteTable
       slave1 <- newLocalNode t mapRemoteTable
-      sc    <- createContextFrom mapRemoteTable (localNodeId node) [localNodeId slave0, localNodeId slave1]
-      out   <- newEmptyMVar 
-      runProcess node $ do
-         let srdd = seedRDD sc (Just 2) $(mkStatic 'iDict)  ( $(mkClosure 'input) dt)
-             mrdd = mapRDD sc srdd $(mkStatic 'iDict) staticSquare
-         thispid <- getSelfPid
-         (Blocks pmap) <- flow sc mrdd
-         mapM_ (\ pid ->
-            sendFetch (SerializableDict :: SerializableDict [Int]) pid (Fetch thispid) ) pmap
-         xss <- mapM (\ _ ->
-            receiveWait [
-             matchSeed (SerializableDict :: SerializableDict [Int]) $ \xs -> do
-               --say $ "Length : " ++ show (length xs)
-               return xs ] ) pmap
-         mapM_ (\ pid -> send pid () ) pmap
-         let output = concat xss
-         liftIO $ putMVar out output
-         liftIO $ putStrLn $ show output
-         liftIO $ threadDelay 100000
+      return (node, [slave0, slave1])
 
-      os <- takeMVar out
-      let squares = map square dt
-      (sort squares) @=? (sort os)
-            
 
-      
-      
+closeContext (master, slaves)  = do
+  mapM_ closeLocalNode slaves
+  closeLocalNode master
+
+generateInput :: Int -> (Int, Int) -> IO [(Int,Int)]
+generateInput n (l,h) = do
+  seed <- newStdGen
+  let ints = take n $ randomRs (l,h) seed
+  return $ zip ints (repeat 1)
+    
+reduceTest t = do
+  (master, slaves)  <- createNodes t
+  inp <- generateInput 100 (1,10)
+  sc  <- createContextFrom mapRemoteTable (localNodeId master) (localNodeId <$> slaves)
+  out <- newEmptyMVar 
+  runProcess master $ do
+      let dictkvS = $(mkStatic 'iDictKV)
+          dictkS  = $(mkStatic 'dictK)
+          inputC  = ($(mkClosure 'input) inp)
+          combC   = staticClosure $(mkStatic 'combine)
+          partC   = staticClosure $(mkStatic 'partitioner)
+          
+          seed = seedRDD sc (Just 2) dictkvS inputC 
+          redx = reduceRDD sc seed dictkS dictkvS combC partC
+
+          dict = SerializableDict :: SerializableDict [(Int,Int)]
+
+      output <- collect sc dict redx
+      liftIO $ putMVar out output
+      liftIO $ putStrLn $ show output
+
+  os <- takeMVar out
+  let expected  = M.toList $ M.fromListWith (+) inp
+      actual = sortBy ( \(k1,_) (k2,_) -> compare k1 k2) os
+
+  expected @=? actual

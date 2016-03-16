@@ -53,13 +53,16 @@ test-suite hspark-test
                      , StageSpec
                      , MapSpec
                      , MapIOSpec
+                     , ReduceSpec
   build-depends:       base
                      , hspark
+                     , containers
                      , distributed-process
                      , distributed-static
                      , network-transport-tcp
                      , QuickCheck
                      , HUnit
+                     , random
                      , test-framework
                      , test-framework-quickcheck2
                      , test-framework-hunit

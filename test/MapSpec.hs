@@ -56,6 +56,10 @@ mapTest t =
          liftIO $ putStrLn $ show output
          liftIO $ threadDelay 100000
 
+      closeLocalNode slave1
+      closeLocalNode slave0
+      closeLocalNode node
+
       os <- takeMVar out
       let squares = map square dt
       (sort squares) @=? (sort os)
