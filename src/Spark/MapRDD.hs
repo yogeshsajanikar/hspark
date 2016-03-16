@@ -95,6 +95,11 @@ instance (RDD a b, Serializable c) => RDD (MapRDD a b) c where
                      return $ f <$> ps
                    Left e  -> error e
 
+    rddDictS mr = _tdict mr
+
+    rddDict _ = SerializableDict
+
+
     flow sc (MapRDD base cfun tdict) = do
       -- Get the process IDs of the base process
       (Blocks pmap) <- flow sc base

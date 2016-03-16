@@ -164,6 +164,10 @@ instance (Ord k, Serializable k, Serializable v, RDD a (k,v)) => RDD (ReduceRDD 
 
     exec = undefined
 
+    rddDictS mr = _tdict mr
+
+    rddDict _ = SerializableDict
+                
     flow sc (ReduceRDD base combiner partitioner dictkv dictk) = do
         -- Get the process IDs of the base process
         (Blocks pmap) <- flow sc base

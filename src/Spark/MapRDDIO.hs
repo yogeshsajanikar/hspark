@@ -88,6 +88,10 @@ instance (RDD a b, Serializable c) => RDD (MapRDDIO a b) c where
 
     exec sc mr = undefined
 
+    rddDictS mr = _tdict mr
+
+    rddDict _ = SerializableDict
+                
     flow sc (MapRDDIO base cfun tdict) = do
       -- Get the process IDs of the base process
       (Blocks pmap) <- flow sc base
