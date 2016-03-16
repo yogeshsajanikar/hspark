@@ -24,8 +24,6 @@ library
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Block
-                     , Spark.Static
-                     , Spark.Task
                      , Spark.Pure.Exec
   build-depends:       base >= 4.7 && < 5
                      , binary

@@ -8,6 +8,11 @@
 -- {-# LANGUAGE RankNTypes #-}
 
 module Spark.ReduceRDD
+    (
+     ReduceRDD(),
+     reduceRDD,
+     __remoteTable
+    )
 
 where
 

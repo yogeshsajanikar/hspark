@@ -15,6 +15,8 @@ import Spark.RDD
 import Control.Distributed.Process
 import Control.Distributed.Process.Serializable
 import Spark.Pure.Exec
+import Spark.SeedRDD
+import Spark.Block
     
 -- | Process RDD and collect the data
 -- This is where all the processing is initiated. The RDD is reduced
@@ -22,12 +24,18 @@ import Spark.Pure.Exec
 -- 'reducing'. They are characterized by the fact that mapping can be
 -- pipelined, whereas reduce stage typically would need a shuffle in
 -- between. 
-collect :: (RDD a b, Serializable b) => Context -> a b -> IO [b]
-collect sc@(Context _ (Distributed master nodes)) = do
-  undefined
+collect :: (RDD a b, Serializable b) => Context -> SerializableDict [b] -> a b -> Process [b]
+collect sc dict rdd = do
+  thispid <- getSelfPid
+  (Blocks pmap) <- flow sc rdd
+  xss <- mapM (\pid -> do
+                 sendFetch dict pid (Fetch thispid)
+                 receiveWait [ matchSeed dict $ \xs -> return xs ]
+              ) pmap
+  -- Terminate the processes
+  mapM_ (\pid -> send pid ()) pmap
+  return $ concat xss
 
 
-executeDistributed :: (RDD a b, Serializable b) => Context -> [NodeId] -> a b -> IO [b]
-executeDistributed = undefined
 
 

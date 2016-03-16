@@ -9,8 +9,6 @@ module Spark.MapRDD
     -- * Map RDD
     MapRDD (),
     mapRDD,
-    -- * Helpers
-    partitionPair,
     -- * Remote Table
     __remoteTable
     )
