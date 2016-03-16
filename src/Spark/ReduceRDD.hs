@@ -31,6 +31,7 @@ data ReduceRDD a k v b = ReduceRDD { _baseM :: a (k,v)
                                    , _cFun  :: Closure (v -> v -> v)
                                    , _pFun  :: Closure (k -> Int)
                                    , _tdict :: Static (SerializableDict [(k,v)])
+                                   , _kdict :: Static (OrdDict k)
                                    }
 
 
@@ -44,12 +45,13 @@ data ReduceRDD a k v b = ReduceRDD { _baseM :: a (k,v)
 reduceRDD :: (RDD a (k,v), Ord k, Serializable k, Serializable v) =>
              Context
           -> a (k,v)
+          -> Static (OrdDict k)
           -> Static (SerializableDict [(k,v)] )
           -> Closure (v -> v -> v)
           -> Closure (k -> Int)
           -> ReduceRDD a k v (k,v)
-reduceRDD sc base dict combiner partitioner =
-    ReduceRDD base combiner partitioner dict
+reduceRDD sc base dictk dict combiner partitioner =
+    ReduceRDD base combiner partitioner dict dictk
 
 
 data FetchPartition = FetchPartition Int ProcessId
@@ -158,8 +160,32 @@ reduceStep2Closure dictk dictkv ipid combiner =
                     `staticCompose` staticDecode $(mkStatic 'partitionedPids)
 
 
-instance RDD a (k,v) => RDD (ReduceRDD a k v) (k,v) where
+instance (Ord k, Serializable k, Serializable v, RDD a (k,v)) => RDD (ReduceRDD a k v) (k,v) where
 
     exec = undefined
 
-    flow = undefined
+    flow sc (ReduceRDD base combiner partitioner dictkv dictk) = do
+        -- Get the process IDs of the base process
+        (Blocks pmap) <- flow sc base
+
+        let slaves = slaveNodes . _strategy $ sc
+            p = M.size pmap -- Size of the partitions
+            n = length slaves
+
+
+        -- Do two step reduction
+        -- In the first step, do local reduction, i.e. 
+        mpids <- forM (M.toList pmap) $ \(i, pid) -> do
+                    (Just pi) <- getProcessInfo pid
+                    spawn (infoNode pi) (reduceStep1Closure dictk dictkv (p, pid) combiner partitioner)
+
+        -- For the second step, all the process ids are sent to 
+        let step1pids  = zip [0..] mpids 
+            slavenodes = zip [0..] (take p $ concat (repeat slaves)) 
+
+        -- for each node now, call the reduction step 2.
+        -- This involves shuffling across the nodes.
+        rpids <- forM slavenodes $ \(i, nid) -> do
+                   spawn nid (reduceStep2Closure dictk dictkv (i, step1pids) combiner)
+
+        return $ Blocks $ M.fromList (zip [0..] rpids)
