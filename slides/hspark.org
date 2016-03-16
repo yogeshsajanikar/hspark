@@ -1,0 +1,150 @@
+#+STARTUP: hidestars overview
+#+TITLE: hspark
+#+AUTHOR: Yogesh Sajanikar
+#+EMAIL: 
+#+REVEAL_ROOT: http://cdn.jsdelivr.net/reveal.js/3.0.0/
+#+REVEAL_THEME: night
+#+OPTIONS: num:nil
+#+OPTIONS: toc:nil
+
+* Overview
+
+  + [[http://spark.apache.org/][Apache Spark]] inspired
+    - Distributed, in-memory computation 
+    - Simple DSL to create RDD (Resilient Distributed Data)
+#+begin_src scala
+  // Scala Code
+  val sc = SparkContext ()
+  val lines : RDD = sc.textFile("data.txt")
+  val lineLengths : RDD = lines.map(s => s.length)
+#+end_src
+
+* Implementation
+
+  + Based on cloud haskell
+  + Uses _Static Pointers_ and _Remote Table_ (for polymorphic types)
+  + Uses _Closure_ to spawn process on remote node(s)
+
+
+* Stages
+ 
+  - Data is distributed into /Blocks/. /Blocks/ reside on multiple /Nodes/
+  - A /Block/ is a process that _holds_ the data, till it is asked by dependent /Block/
+  - Mapping operations _typically_ evaluate on the same /Node/ 
+  - Reduce causes shuffling
+ 
+  #+begin_src dot :file rdd.svg
+    digraph rdd {
+            rankdir = LR
+            ranksep=0.2
+            node [ shape = rectangle ]
+            start [ rank = "source" ]
+            subgraph cluster_1 {
+                    rankdir = LR
+                    d1 [ label = "partition 1", rank = 1 ]
+                    d2 [ label = "partition 2" ]
+                    m1 [ label = "map 1" ]
+                    m2 [ label = "map 2" ]
+                    r1 [ label = "reduce 1" ]
+                    label = "node 1"
+            }
+            subgraph cluster_2 {
+                    rankdir = LR
+                    d3 [ label = "partition 3" ]
+                    d4 [ label = "partition 4" ]
+                    m3 [ label = "map 3" ]
+                    m4 [ label = "map 4" ]
+                    r3 [ label = "reduce 3" ]
+                    r4 [ label = "reduce 4" ]
+                    label = "node 2"
+            }
+
+            start -> d1 [ label = "Distribute" ]
+            start -> d2
+            start -> d3
+            start -> d4
+
+            d1 -> m1 [label = "map f" ]
+            d2 -> m2
+            d3 -> m3
+            d4 -> m4
+
+            m1 -> r1; m1 -> r3
+            m2 -> r1; m2 -> r4
+            m3 -> r3
+            m4 -> r1; m4 -> r4
+            
+            r1 -> end
+            r3 -> end
+            r4 -> end
+
+            end [ label = "collect" ]
+    }
+  #+end_src
+
+  #+RESULTS:
+  [[file:rdd.svg]]
+
+ 
+
+* RDD - Distributed Data
+  + Context gives configuration to run the computation with
+    #+begin_src haskell
+      data Strategy = Distributed { masterNode :: NodeId, slaveNodes :: [NodeId] }
+      data Context  = Context { _lookupTable :: RemoteTable -- Lookup table
+                              , _strategy :: Strategy }
+
+    #+end_src
+  + Implemented as a set of *Processes* returning set of /Block/. Each block reprsenting chunk of data.
+
+    #+begin_src haskell
+      class Serializable b => RDD a b where
+          -- | Evaluate RDD and return the set of processes representing data 
+          flow :: Context -> a b -> Process (Blocks b)
+    #+end_src
+
+* DSL - Sample 
+
+  #+begin_src haskell
+    sc <- createContextFrom remoteTable master slaves
+    -- Create RDD with 2 partitions
+    let partitions = Just 2
+        dt = [1..10]
+        -- Seed the data with 
+        seed = seedRDD sc partitions dict ($(mkClosure 'input) dt)
+        -- Map the data
+        maps = mapRDD sc seed dict square
+        -- Reduce with a combiner
+        reduce = reduceRDD sc maps odict dict combiner partitioner
+
+    -- Compute, will trigger seed, maps, reduce 
+    result <- collect sc reduce
+
+  #+end_src
+
+  /Note: Dictionaries need to be passed for passing qualified type dictionaries/
+  a.k.a. "Dict Trick"
+
+* Execution 
+
+  + Equal distribution among nodes
+  + Maps are always localized (Run on the same node where parent process was executed).
+  + Execution
+    #+begin_src haskell
+      instance (RDD a b, Serializable c) => RDD (MapRDD a b) c where
+
+          flow sc (MapRDD base cfun tdict) = do
+            -- Get the process IDs of the base process
+            (Blocks pmap) <- flow sc base
+
+            -- For each process, try to spawn process on the same node doing mapping
+            mpids <- forM (M.toList pmap) $ \(i, pid) -> do
+                        (Just pi) <- getProcessInfo pid
+                        spawn (infoNode pi) (rddMapClosure (rddDictS base) tdict (i, pid)  cfun )
+                        
+            return $ Blocks $ M.fromList (zip [0..] mpids)
+    #+end_src
+
+
+
+  

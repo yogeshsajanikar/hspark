@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>hspark</title>
+<meta name="author" content="(Yogesh Sajanikar)"/>
+<style type="text/css">
+.underline { text-decoration: underline; }
+</style>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/reveal.css"/>
+<link rel="stylesheet" href="http://cdn.jsdelivr.net/reveal.js/3.0.0/css/theme/night.css" id="theme"/>
+
+<!-- If the query includes 'print-pdf', include the PDF print sheet -->
+<script>
+    if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = 'http://cdn.jsdelivr.net/reveal.js/3.0.0/css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+    }
+</script>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+<section id="sec-title-slide">
+<h1>hspark</h1>
+<h2>Yogesh Sajanikar</h2>
+<h2><a href="mailto:"></a></h2>
+<h2></h2>
+</section>
+
+<section>
+<section id="slide-orgheadline1">
+<h2 id="orgheadline1">Overview</h2>
+<ul>
+<li><a href="http://spark.apache.org/">Apache Spark</a> inspired
+<ul>
+<li>Distributed, in-memory computation</li>
+<li>Simple DSL to create RDD (Resilient Distributed Data)</li>
+
+</ul></li>
+
+</ul>
+<div class="org-src-container">
+
+<pre  class="src src-scala"><span style="color: #808080;">// </span><span style="color: #808080;">Scala Code</span>
+<span style="color: #359cab; font-weight: bold;">val</span> <span style="color: #a7b663;">sc</span> <span style="color: #359cab; font-weight: bold;">=</span> <span style="color: #5d9b7c;">SparkContext</span> ()
+<span style="color: #359cab; font-weight: bold;">val</span> <span style="color: #a7b663;">lines</span> <span style="color: #359cab; font-weight: bold;">:</span> <span style="color: #5e8292;">RDD</span> <span style="color: #359cab; font-weight: bold;">=</span> sc.textFile(<span style="color: #a583b2;">"data.txt"</span>)
+<span style="color: #359cab; font-weight: bold;">val</span> <span style="color: #a7b663;">lineLengths</span> <span style="color: #359cab; font-weight: bold;">:</span> <span style="color: #5e8292;">RDD</span> <span style="color: #359cab; font-weight: bold;">=</span> lines.map(s <span style="color: #359cab; font-weight: bold;">=&gt;</span> s.length)
+</pre>
+</div>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline2">
+<h2 id="orgheadline2">Implementation</h2>
+<ul>
+<li>Based on cloud haskell</li>
+<li>Uses <span class="underline">Static Pointers</span> and <span class="underline">Remote Table</span> (for polymorphic types)</li>
+<li>Uses <span class="underline">Closure</span> to spawn process on remote node(s)</li>
+
+</ul>
+
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline3">
+<h2 id="orgheadline3">Stages</h2>
+<ul>
+<li>Data is distributed into <i>Blocks</i>. <i>Blocks</i> reside on multiple <i>Nodes</i></li>
+<li>A <i>Block</i> is a process that <span class="underline">holds</span> the data, till it is asked by dependent <i>Block</i></li>
+<li>Mapping operations <span class="underline">typically</span> evaluate on the same <i>Node</i></li>
+<li>Reduce causes shuffling</li>
+
+</ul>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="rdd.svg" >
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline4">
+<h2 id="orgheadline4">RDD - Distributed Data</h2>
+<ul>
+<li><p>
+Context gives configuration to run the computation with
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-haskell"><span style="color: #359cab; font-weight: bold;">data</span> <span style="color: #5e8292;">Strategy</span> <span style="color: #a7b663;">=</span> <span style="color: #5e8292;">Distributed</span> { masterNode <span style="color: #a7b663;">::</span> <span style="color: #5e8292;">NodeId</span><span style="color: #a7b663;">,</span> slaveNodes <span style="color: #a7b663;">::</span> [<span style="color: #5e8292;">NodeId</span>] }
+<span style="color: #359cab; font-weight: bold;">data</span> <span style="color: #5e8292;">Context</span>  <span style="color: #a7b663;">=</span> <span style="color: #5e8292;">Context</span> { _lookupTable <span style="color: #a7b663;">::</span> <span style="color: #5e8292;">RemoteTable</span> <span style="color: #808080;">-- </span><span style="color: #808080;">Lookup table</span>
+                        <span style="color: #a7b663;">,</span> _strategy <span style="color: #a7b663;">::</span> <span style="color: #5e8292;">Strategy</span> }
+</pre>
+</div></li>
+<li><p>
+Implemented as a set of <b>Processes</b> returning set of <i>Block</i>. Each block reprsenting chunk of data.
+</p>
+
+<div class="org-src-container">
+
+<pre  class="src src-haskell"><span style="color: #359cab; font-weight: bold;">class</span> <span style="color: #5e8292;">Serializable</span> b <span style="color: #a7b663;">=&gt;</span> <span style="color: #5e8292;">RDD</span> a b <span style="color: #359cab; font-weight: bold;">where</span>
+    <span style="color: #808080;">-- | Evaluate RDD and return the set of processes representing data </span>
+    flow <span style="color: #a7b663;">::</span> <span style="color: #5e8292;">Context</span> <span style="color: #a7b663;">-&gt;</span> a b <span style="color: #a7b663;">-&gt;</span> <span style="color: #5e8292;">Process</span> (<span style="color: #5e8292;">Blocks</span> b)
+</pre>
+</div></li>
+
+</ul>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline5">
+<h2 id="orgheadline5">DSL - Sample</h2>
+<div class="org-src-container">
+
+<pre  class="src src-haskell">sc <span style="color: #a7b663;">&lt;-</span> createContextFrom remoteTable master slaves
+<span style="color: #808080;">-- </span><span style="color: #808080;">Create RDD with 2 partitions</span>
+<span style="color: #359cab; font-weight: bold;">let</span> partitions <span style="color: #a7b663;">=</span> <span style="color: #5e8292;">Just</span> 2
+    dt <span style="color: #a7b663;">=</span> [1<span style="color: #a7b663;">..</span>10]
+    <span style="color: #808080;">-- </span><span style="color: #808080;">Seed the data with </span>
+    seed <span style="color: #a7b663;">=</span> seedRDD sc partitions dict (<span style="color: #a7b663;">$</span>(mkClosure 'input) dt)
+    <span style="color: #808080;">-- </span><span style="color: #808080;">Map the data</span>
+    maps <span style="color: #a7b663;">=</span> mapRDD sc seed dict square
+    <span style="color: #808080;">-- </span><span style="color: #808080;">Reduce with a combiner</span>
+    reduce <span style="color: #a7b663;">=</span> reduceRDD sc maps odict dict combiner partitioner
+
+<span style="color: #808080;">-- </span><span style="color: #808080;">Compute, will trigger seed, maps, reduce </span>
+result <span style="color: #a7b663;">&lt;-</span> collect sc reduce
+</pre>
+</div>
+
+<p>
+<i>Note: Dictionaries need to be passed for passing qualified type dictionaries</i>
+a.k.a. "Dict Trick"
+</p>
+
+</section>
+</section>
+<section>
+<section id="slide-orgheadline6">
+<h2 id="orgheadline6">Execution</h2>
+<ul>
+<li>Equal distribution among nodes</li>
+<li>Maps are always localized (Run on the same node where parent process was executed).</li>
+<li><p>
+Execution
+</p>
+<div class="org-src-container">
+
+<pre  class="src src-haskell"><span style="color: #359cab; font-weight: bold;">instance</span> (<span style="color: #5e8292;">RDD</span> a b<span style="color: #a7b663;">,</span> <span style="color: #5e8292;">Serializable</span> c) <span style="color: #a7b663;">=&gt;</span> <span style="color: #5e8292;">RDD</span> (<span style="color: #5e8292;">MapRDD</span> a b) c <span style="color: #359cab; font-weight: bold;">where</span>
+
+    flow sc (<span style="color: #5e8292;">MapRDD</span> base cfun tdict) <span style="color: #a7b663;">=</span> <span style="color: #359cab; font-weight: bold;">do</span>
+      <span style="color: #808080;">-- </span><span style="color: #808080;">Get the process IDs of the base process</span>
+      (<span style="color: #5e8292;">Blocks</span> pmap) <span style="color: #a7b663;">&lt;-</span> flow sc base
+
+      <span style="color: #808080;">-- </span><span style="color: #808080;">For each process, try to spawn process on the same node that maps the function</span>
+      mpids <span style="color: #a7b663;">&lt;-</span> forM (<span style="color: #5e8292;">M</span><span style="color: #a7b663;">.</span>toList pmap) <span style="color: #a7b663;">$</span> <span style="color: #a7b663;">\</span>(i<span style="color: #a7b663;">,</span> pid) <span style="color: #a7b663;">-&gt;</span> <span style="color: #359cab; font-weight: bold;">do</span>
+                  (<span style="color: #5e8292;">Just</span> pi) <span style="color: #a7b663;">&lt;-</span> getProcessInfo pid
+                  spawn (infoNode pi) (rddMapClosure (rddDictS base) tdict (i<span style="color: #a7b663;">,</span> pid)  cfun )
+
+      return <span style="color: #a7b663;">$</span> <span style="color: #5e8292;">Blocks</span> <span style="color: #a7b663;">$</span> <span style="color: #5e8292;">M</span><span style="color: #a7b663;">.</span>fromList (zip [0<span style="color: #a7b663;">..</span>] mpids)
+</pre>
+</div></li>
+
+</ul>
+</section>
+</section>
+</div>
+</div>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/head.min.js"></script>
+<script src="http://cdn.jsdelivr.net/reveal.js/3.0.0/js/reveal.js"></script>
+
+<script>
+// Full list of configuration options available here:
+// https://github.com/hakimel/reveal.js#configuration
+Reveal.initialize({
+
+controls: true,
+progress: true,
+history: false,
+center: true,
+slideNumber: 'c',
+rollingLinks: false,
+keyboard: true,
+overview: true,
+
+theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+transitionSpeed: 'default',
+multiplex: {
+    secret: '', // null if client
+    id: '', // id, obtained from socket.io server
+    url: '' // Location of socket.io server
+},
+
+// Optional libraries used to extend on reveal.js
+dependencies: [
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+ { src: 'http://cdn.jsdelivr.net/reveal.js/3.0.0/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }]
+});
+</script>
+</body>
+</html>
