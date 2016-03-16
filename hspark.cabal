@@ -20,6 +20,7 @@ library
                      , Spark.SeedRDD
                      , Spark.MapRDD
                      , Spark.MapRDDIO
+                     , Spark.ReduceRDD
                      , Spark.Context
                      , Spark.Executor
                      , Spark.Block
