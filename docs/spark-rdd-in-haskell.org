@@ -1,0 +1,24 @@
+#+STARTUP: hidestars overview
+#+TITLE: Implementing Apache Spark in Haskell
+#+AUTHOR: Yogesh Sajanikar
+#+DATE: March 17, 2016
+#+OPTIONS: toc:2 H:3 num:2
+#+LaTeX_CLASS_OPTIONS: [garamond]
+
+* Abstract
+  We present [[https://github.com/yogeshsajanikar/hspark][hspark]], a Haskell library to create Apache Spark[fn:1]
+  like RDDs, and do map-reduce on multiple nodes. We have selected
+  /cloud haskell/[fn:2] to 
+
+* Overview
+  [[http://spark.apache.org/][Apache Spark]] is a very popular framework for fast cluster
+  computing. It is reported to give performance benefits[fn:1] above 
+  [[http://hadoop.apache.org/][Hadoop]].  
+
+
+
+* Footnotes
+
+[fn:2] Cloud Haskell
+
+[fn:1] http://spark.apache.org/
