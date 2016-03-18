@@ -1,9 +1,9 @@
 #+STARTUP: hidestars overview
 #+TITLE: Implementing Apache Spark in Haskell
 #+AUTHOR: Yogesh Sajanikar
-#+DATE: March 17, 2016
+#+DATE: March 17, 2016 (CS240H)
 #+OPTIONS: toc:nil H:3 num:3
-#+LaTeX_CLASS_OPTIONS: [garamond,12pt,hidelinks,colorlinks]
+#+LaTeX_CLASS_OPTIONS: [a4paper,12pt,hidelinks,colorlinks,textwidth=6.5in, textheight=10in]
 
 #+begin_abstract
     This paper presents [[https://github.com/yogeshsajanikar/hspark][hspark]], a Haskell library inspired from Apache
@@ -95,14 +95,14 @@
 *** Closure 
     Distributed-process (and hence /hspark/) heavily rely on closure,
     and /StaticPointer/ extension provided by GHC > 7.10.x. A static
-    pointer is implemented as a fingerprint that can be valid across
-    machines, and can be dereferenced later on a different
-    machine. cite:Epstein:2011:THC:2096148.2034690
+    pointer is implemented as a fingerprint of a closed expression
+    that can be valid across machines, and can be dereferenced later
+    on a different machine. cite:Epstein:2011:THC:2096148.2034690
 
-    An RDD accepts closure built around static values, so that they
-    can be serialized across nodes. Polymorphic types are serialized
-    through [[https://hackage.haskell.org/package/rank1dynamic-0.3.2.0][rank1dynamic]] library, by building a remote table for
-    methods. 
+    An RDD accepts closure built around static values using
+    composition, so that they can be serialized across
+    nodes. Polymorphic types are serialized through [[https://hackage.haskell.org/package/rank1dynamic-0.3.2.0][rank1dynamic]]
+    library, by building a remote table for methods. 
 
     *Hspark* currently implements following RDD.
 
@@ -317,5 +317,3 @@ bibliography:refs.bib
 * Footnotes
 
 [fn:1] http://spark.apache.org/
-
-
