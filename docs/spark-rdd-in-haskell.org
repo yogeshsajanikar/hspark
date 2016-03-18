@@ -2,23 +2,66 @@
 #+TITLE: Implementing Apache Spark in Haskell
 #+AUTHOR: Yogesh Sajanikar
 #+DATE: March 17, 2016
-#+OPTIONS: toc:2 H:3 num:2
-#+LaTeX_CLASS_OPTIONS: [garamond]
+#+OPTIONS: toc:nil H:3 num:2
+#+LaTeX_CLASS_OPTIONS: [garamond,12pt,hidelinks,colorlinks]
 
-* Abstract
-  We present [[https://github.com/yogeshsajanikar/hspark][hspark]], a Haskell library to create Apache Spark[fn:1]
-  like RDDs, and do map-reduce on multiple nodes. We have selected
-  /cloud haskell/[fn:2] to 
+*** Abstract
+
+    This paper presents hspark, a Haskell library inspired from Apache
+    Spark. *Hspark* implements a framework to enable running a
+    distributed map-reduce job over a set of /nodes/. *Hspark* also
+    presents a extendible DSL to speficy a job by dividing it into
+    multiple stages. *Hspark* translates the DSL into a set of
+    distributed /processes/ with the help of /cloud haskell/
+    libraries.  
+
 
 * Overview
-  [[http://spark.apache.org/][Apache Spark]] is a very popular framework for fast cluster
-  computing. It is reported to give performance benefits[fn:1] above 
-  [[http://hadoop.apache.org/][Hadoop]].  
+
+** Apache Spark
+   Apache spark is a very popular and fast cluster computing
+   framework. It is reported to give significant performance benefits
+   above Hadoop. The jobs are specified in terms of RDD (Resilient
+   Distributed Data) in Spark. A job can contain multiple layered RDDs
+   where one layer depends upon the previsou layer. Each RDD does an
+   atomic mapping or reduction step. When executed, an RDD alongwith
+   its dependent RDDs are split into number specified partition. This
+   step creates a DAG (Directed Acyclic Graph) between an RDD and its
+   depdendent RDDs. This DAG is then scheduled to run over a set of
+   distributed nodes. The backend for execution can be either Hadoop
+   or Mesos cluster. Use of in-memory blocks, and strategy to
+   efficiently localize the data gives Spark a better performance.
+
+** Hspark
+   *Hspark* implements a simple and extensible DSL like to specify a
+   job. Hspark takes a 
+   configuration of master and slave nodes, and translates the job at
+   runtime into a set of distributed *blocks*. Each block is a
+   *process* that is capable of doing a task. 
 
 
+   that can be run over a set of /nodes/.
+
+   The main aim is to demonstrate DSL in Haskell to /specify/ a job,
+   and /execute/ it in a distributed environment with a given
+   configuration. 
+
+
+   [[http://spark.apache.org/][Apache Spark]] is a very popular framework for fast cluster
+   computing. It is reported to give performance benefits[fn:1] above 
+   [[http://hadoop.apache.org/][Hadoop]].  
+
+* Sample Code
+
+  #+begin_src haskell
+    class Functor f where
+        fmap :: (a -> b) -> f a -> f b
+            
+    map f [1..100]
+  #+end_src
 
 * Footnotes
 
-[fn:2] Cloud Haskell
 
-[fn:1] http://spark.apache.org/
+* References
+#+BIBLIOGRAPHY: refs plain

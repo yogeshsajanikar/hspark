@@ -1,6 +1,6 @@
-% Created 2016-03-17 Thu 14:10
-\documentclass[garamond]{article}
-\usepackage[latin1]{inputenc}
+% Created 2016-03-18 Fri 15:44
+\documentclass[garamond,12pt,hidelinks,colorlinks]{article}
+\usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{fixltx2e}
 \usepackage{graphicx}
@@ -28,19 +28,63 @@
 \begin{document}
 
 \maketitle
-\setcounter{tocdepth}{2}
-\tableofcontents
 
-
-\section{Abstract}
+\subsubsection*{Abstract}
 \label{sec:orgheadline1}
-We present \href{https://github.com/yogeshsajanikar/hspark}{hspark}, a Haskell library to create Apache Spark\footnote{\url{http://spark.apache.org/}}
-like RDDs, and do map-reduce on multiple nodes. We have selected
-\emph{cloud haskell}\footnote{Cloud Haskell} to 
+
+This paper presents hspark, a Haskell library inspired from Apache
+Spark. \textbf{Hspark} implements a framework to enable running a
+distributed map-reduce job over a set of \emph{nodes}. \textbf{Hspark} also
+presents a extendible DSL to speficy a job by dividing it into
+multiple stages. \textbf{Hspark} translates the DSL into a set of
+distributed \emph{processes} with the help of \emph{cloud haskell}
+libraries.  
+
 
 \section{Overview}
+\label{sec:orgheadline4}
+
+\subsection{Apache Spark}
 \label{sec:orgheadline2}
+Apache spark is a very popular and fast cluster computing
+framework. It is reported to give significant performance benefits
+above Hadoop. The jobs are specified in terms of RDD (Resilient
+Distributed Data) in Spark. A job can contain multiple layered RDDs
+where one layer depends upon the previsou layer. Each RDD does an
+atomic mapping or reduction step. When executed, an RDD alongwith
+its dependent RDDs are split into number specified partition. This
+step creates a DAG (Directed Acyclic Graph) between an RDD and its
+depdendent RDDs. This DAG is then scheduled to run over a set of
+distributed nodes. The backend for execution can be either Hadoop
+or Mesos cluster. 
+
+\subsection{Hspark}
+\label{sec:orgheadline3}
+The main intention of creating \textbf{hspark} in Haskell is to implement
+a simple and extensible DSL, like \emph{Apache Spark} to specify a job,
+that can be run over a set of \emph{nodes}.
+
+The main aim is to demonstrate DSL in Haskell to \emph{specify} a job,
+and \emph{execute} it in a distributed environment with a given
+configuration. 
+
+
 \href{http://spark.apache.org/}{Apache Spark} is a very popular framework for fast cluster
-computing. It is reported to give performance benefits\footnotemark[1]{} above 
+computing. It is reported to give performance benefits\footnote{\url{http://spark.apache.org/}} above 
 \href{http://hadoop.apache.org/}{Hadoop}.  
+
+\section{Sample Code}
+\label{sec:orgheadline5}
+
+\begin{verbatim}
+class Functor f where
+    fmap :: (a -> b) -> f a -> f b
+
+map f [1..100]
+\end{verbatim}
+
+\section{References}
+\label{sec:orgheadline6}
+\bibliographystyle{plain}
+\bibliography{refs}
 \end{document}
