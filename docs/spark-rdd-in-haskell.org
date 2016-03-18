@@ -2,66 +2,320 @@
 #+TITLE: Implementing Apache Spark in Haskell
 #+AUTHOR: Yogesh Sajanikar
 #+DATE: March 17, 2016
-#+OPTIONS: toc:nil H:3 num:2
+#+OPTIONS: toc:nil H:3 num:3
 #+LaTeX_CLASS_OPTIONS: [garamond,12pt,hidelinks,colorlinks]
 
-*** Abstract
-
-    This paper presents hspark, a Haskell library inspired from Apache
+#+begin_abstract
+    This paper presents [[https://github.com/yogeshsajanikar/hspark][hspark]], a Haskell library inspired from Apache
     Spark. *Hspark* implements a framework to enable running a
     distributed map-reduce job over a set of /nodes/. *Hspark* also
-    presents a extendible DSL to speficy a job by dividing it into
+    presents a extendible DSL to specify a job by dividing it into
     multiple stages. *Hspark* translates the DSL into a set of
-    distributed /processes/ with the help of /cloud haskell/
+    distributed /processes/ with the help of /[[http://haskell-distributed.github.io/][cloud Haskell]]/
     libraries.  
+#+end_abstract
 
 
 * Overview
 
 ** Apache Spark
-   Apache spark is a very popular and fast cluster computing
-   framework. It is reported to give significant performance benefits
-   above Hadoop. The jobs are specified in terms of RDD (Resilient
-   Distributed Data) in Spark. A job can contain multiple layered RDDs
-   where one layer depends upon the previsou layer. Each RDD does an
-   atomic mapping or reduction step. When executed, an RDD alongwith
-   its dependent RDDs are split into number specified partition. This
-   step creates a DAG (Directed Acyclic Graph) between an RDD and its
-   depdendent RDDs. This DAG is then scheduled to run over a set of
+   [[http://spark.apache.org/][Apache spark]] is a very popular and fast cluster computing
+   framework. It is reported to give significant performance benefits[fn:1]
+   above [[http://hadoop.apache.org/][Hadoop]]. The /jobs/ are specified in terms of RDD cite:Zaharia:2012:RDD:2228298.2228301 (Resilient
+   Distributed Data) in Spark. Each RDD does an atomic
+   mapping or reduction step. When executed, an RDD along with its
+   dependent RDDs are split into partitions. This step
+   creates a DAG (Directed Acyclic Graph) between an RDD and its
+   dependent RDDs. This DAG is then scheduled to run over a set of 
    distributed nodes. The backend for execution can be either Hadoop
    or Mesos cluster. Use of in-memory blocks, and strategy to
    efficiently localize the data gives Spark a better performance.
 
 ** Hspark
-   *Hspark* implements a simple and extensible DSL like to specify a
-   job. Hspark takes a 
-   configuration of master and slave nodes, and translates the job at
-   runtime into a set of distributed *blocks*. Each block is a
-   *process* that is capable of doing a task. 
+   *Hspark* implements a simple and extensible DSL to specify a
+   job. Hspark takes a configuration of cluster, and translates the 
+   job at runtime into a set of distributed tasks using
+   distributed-process library of cloud haskell.
 
+* *Hspark* components
+  Hspark has three components
+  
+  + /Context/ - Context provides a information about cluster.
+  + /RDD DSL/ - Provides a way of expressing /hspark/ job.
+  + /Execution/ - A backend integrated with RDD and context that
+    executes RDD with its dependencies. 
 
-   that can be run over a set of /nodes/.
+** Context
+   A context specifies the environment and configuration of the
+   cluster. The cluster consists of set of /nodes/. Each node works
+   as a logical unit capable of running come computations. The nodes
+   are separated from each other through a _transport_ layer. 
 
-   The main aim is to demonstrate DSL in Haskell to /specify/ a job,
-   and /execute/ it in a distributed environment with a given
-   configuration. 
+   The essential components of the context are
 
+   1. *Master Node* - A master node triggers the job by distributing it
+      on slave nodes in the cluster. After the job has finished, it
+      also collects the data from all the nodes.
+   2. *Slave Node* - A slave node is a worker node. A master node spawns
+      computations on slave node(s). 
+   
+** RDD 
+   RDD is implemented as a type class. The type that is produced my an
+   RDD must be /serializable/ so that it can be transported over the
+   wire to another node. 
 
-   [[http://spark.apache.org/][Apache Spark]] is a very popular framework for fast cluster
-   computing. It is reported to give performance benefits[fn:1] above 
-   [[http://hadoop.apache.org/][Hadoop]].  
+   #+begin_src haskell :exports code
+     newtype Blocks a = Blocks { _blocks :: M.Map Int ProcessId }
+
+     class Serializable b => RDD a b where
+
+         flow :: Context -> a b -> Process (Blocks b)
+   #+end_src
+
+   An RDD implements a method /flow/ that uses a context, and triggers
+   a process that returns /Blocks/. A process in /cloud haskell/ is a
+   lightweight action container. Each /block/ is a /process id/ of a
+   process in a cluster. 
+
+   A process being implemented asynchronously, /flow/ can immediately
+   return. The downstream application (or an RDD) must send a *Fetch*
+   query to the process in a block to retrieve the data. 
+
+   Each chunk of data for /Block b/ is a list /[b]/. 
+
+   #+NAME: Retrieving data from an RDD
+   #+begin_src haskell :exports code
+     -- pid is a process id contained in a block
+     -- Send a message to that PID, and wait for it.
+     do 
+       sendFetch dict pid (Fetch thispid)
+       receiveWait [ matchSeed dict $ \xs -> return xs ]
+   #+end_src
+
+*** Closure 
+    Distributed-process (and hence /hspark/) heavily rely on closure,
+    and /StaticPointer/ extension provided by GHC > 7.10.x. A static
+    pointer is implemented as a fingerprint that can be valid across
+    machines, and can be dereferenced later on a different
+    machine. cite:Epstein:2011:THC:2096148.2034690
+
+    An RDD accepts closure built around static values, so that they
+    can be serialized across nodes. Polymorphic types are serialized
+    through [[https://hackage.haskell.org/package/rank1dynamic-0.3.2.0][rank1dynamic]] library, by building a remote table for
+    methods. 
+
+    *Hspark* currently implements following RDD.
+
+*** SeedRDD - Populating the data
+    Seed RDD simply splits up the data and populates it across all
+    partitions, or given number of nodes. 
+
+    #+begin_src haskell :exports code
+      seedRDD :: Context
+              -> Maybe Int  -- ^ Number of partitions
+              -> Static (SerializableDict [a])
+              -> Closure [a] -- ^ Input data
+              -> SeedRDD a
+    #+end_src
+
+*** MapRDD/MapRDDIO - Mapping with a function
+    A /MapRDD/ is takes a parent RDD, and a function /(b -> c)/ that
+    maps RDD of type /a/ to RDD of type /b/
+
+    #+begin_src haskell :exports node
+      -- | Create map RDD from a function closure and base RDD
+      mapRDD :: (RDD a b, Serializable c) =>
+                Context -- ^ Context
+             -> a b -- ^ Parent RDD 
+             -> Static (SerializableDict [c])  
+             -> Closure (b -> c) 
+                -- ^ Transformation
+             -> MapRDD a b c 
+                -- ^ Map representing transformation (b -> c)
+    #+end_src
+
+    A /MapRDDIO/ is similar to /MapRDD/ except that it takes an IO
+    action /(b -> IO c)/. 
+
+*** ReduceRDD - Reducing with a combining function and a partition
+    A /ReduceRDD/ works a parent RDD that produces key value
+    pair /(k,v)/. Hence /ReduceRDD/ and its RDD /instance/ are
+    designed as,  
+    #+begin_src haskell :exports code
+      data ReduceRDD a k v b
+
+      -- | Constraint parent to produce a key-value pair.
+      instance (Ord k, Serializable k, Serializable v, RDD a (k,v))
+          => RDD (ReduceRDD a k v) (k,v) where
+
+      reduceRDD :: (RDD a (k,v), Ord k, Serializable k, Serializable v) =>
+                   Context
+                -> a (k,v) -- ^ Base RDD
+                -> Static (OrdDict k) 
+                   -- ^ Key must be orderable
+                -> Static (SerializableDict [(k,v)] )  
+                -> Closure (v -> v -> v) 
+                   -- ^ Combining values for a key
+                -> Closure (k -> Int) 
+                   -- ^ Choosing a partition for a key
+                -> ReduceRDD a k v (k,v)
+    #+end_src
+
+    Reducing a data with a combining function is done in two stages
+    cite:MapReduce :
+
+    + *Stage 1: Local Reduction*
+      The data is locally reduced using combining function. Local
+      reduction results in a reducing serialization overhead over the
+      network.  
+
+    + *Stage 2: Shuffled Reduction*
+      Each process is mapped to a partition number. The partition
+      number is sent to the processes producing /Stage 1/. Each /Stage
+      1/ process responds by delivering only those keys which belong
+      to a given partition.
+
+      /Stage 2/ further does the reduction using combining function. 
+    
+
+** Execution Strategy
+   *Hspark* implements following strategy to allocate partitions to
+   node, and do further processing. 
+
+   + *Partitioning Data* - Each partition of data is assigned to a
+     node in the cluster. If number of partitions are larger than the
+     number of worker nodes, the nodes are wrapped over.
+
+   + *Mapping Jobs Allocation* - The mapping jobs is done on the same
+     node where its parent block is present.
+
+   + *Reduction Job* - The number of partitions in the reduction are
+     kept same as the parent RDD.
+
+   + *Storage* - The processes are also responsible for the storing
+     the results of the computation.
+     
+   The execution plans for a simple seed-map-reduce job looks like
+   following. 
+
+   #+begin_src dot :file rdd.png
+         digraph rdd {
+                 rankdir = LR
+                 ranksep=0.2
+                 node [ shape = rectangle ]
+                 start [ rank = "source" ]
+                 subgraph cluster_1 {
+                         rankdir = LR
+                         d1 [ label = "partition 1", rank = 1 ]
+                         d2 [ label = "partition 2" ]
+                         m1 [ label = "map 1" ]
+                         m2 [ label = "map 2" ]
+                         r1 [ label = "reduce 1" ]
+                         label = "node 1"
+                 }
+                 subgraph cluster_2 {
+                         rankdir = LR
+                         d3 [ label = "partition 3" ]
+                         d4 [ label = "partition 4" ]
+                         m3 [ label = "map 3" ]
+                         m4 [ label = "map 4" ]
+                         r3 [ label = "reduce 3" ]
+                         r4 [ label = "reduce 4" ]
+                         label = "node 2"
+                 }
+
+                 start -> d1 [ label = "Distribute" ]
+                 start -> d2
+                 start -> d3
+                 start -> d4
+
+                 d1 -> m1 [label = "map f" ]
+                 d2 -> m2
+                 d3 -> m3
+                 d4 -> m4
+
+                 m1 -> r1; m1 -> r3
+                 m2 -> r1; m2 -> r4
+                 m3 -> r3
+                 m4 -> r1; m4 -> r4
+            
+                 r1 -> end
+                 r3 -> end
+                 r4 -> end
+
+                 end [ label = "collect" ]
+         }
+
+   #+end_src
+
+   #+RESULTS:
+   [[file:rdd.png]]
+
+* Limitations and Future Scope
+  + Does not handle exceptions well. Hence, *hspark* is yet to achieve
+    the /resiliency/. 
+
+  + It should be possible to implement a execution strategy driven by
+    context, where a failed process can be restarted in case of a
+    network failure. 
+
+  + When the mapping processes share the same node, the data is still
+    serialized (not reused). It may be possible to model it through
+    share /MVar/ in such a way that the proceses working on the same
+    node can resolve directly to the data. 
+
+  + Processes are spawned on demand without any monitoring. Monitors
+    should be added to detect failures, and propagate.
+
+  + The closures are used to spawn processes. And hence, the task
+    allocation has to be done by RDD itself. Instead, it is proposed
+    that RDD should evaluate to a DAG of closures (rather than a
+    blocks of processes).  
+
+    Each graph node in the closure DAG would represent a process that
+    can be spawned on any of the node in the cluster. This will put
+    /Context/ in the total control, and also will give an ability to
+    restore a node by looking at a lineage of any graph node and
+    re-processing the closure.
+
+    
+  These points should be considered only when the library has
+  stabilized. 
+
+  + Benchmarking on the known data and against /Apache Spark/.
+  + Using different backends for /distributed-process/
 
 * Sample Code
+  Sample *hspark* code is provided here.
 
-  #+begin_src haskell
-    class Functor f where
-        fmap :: (a -> b) -> f a -> f b
-            
-    map f [1..100]
+  #+begin_src haskell :exports code
+    do
+      sc <- createContextFrom remoteTable master slaves
+      -- Create RDD with 2 partitions
+      let partitions = Just 2
+          dt = [1..100]
+          -- Seed the data with 
+          seed = seedRDD sc partitions dict ($(mkClosure 'input) dt)
+          -- Map the data
+          maps = mapRDD sc seed dict square
+          -- Reduce with a combiner
+          reduce = reduceRDD sc maps odict dict combiner partitioner
+
+      -- Compute, will trigger seed, maps, reduce 
+      result <- collect sc reduce
   #+end_src
+
+* Source Repository
+  The  repository is maintained at git-hub at 
+  https://github.com/yogeshsajanikar/hspark. Any suggestions and
+  contributions are always welcome.
+
+bibliographystyle:unsrt
+bibliography:refs.bib
+
 
 * Footnotes
 
+[fn:1] http://spark.apache.org/
 
-* References
-#+BIBLIOGRAPHY: refs plain
+
