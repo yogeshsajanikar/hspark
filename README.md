@@ -167,3 +167,5 @@ The simple tests for each RDD are in test folder.
 * Cloud Haskell and Tutorials
   http://haskell-distributed.github.io/
 
+/Note: This work is done as a part of CS240H coursework at stanford/
+

@@ -7,3 +7,5 @@
 *.synctex.gz
 *.tex
 *.toc
+_minted*
+auto/
