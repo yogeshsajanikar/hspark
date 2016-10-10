@@ -29,6 +29,7 @@ library
                      , binary
                      , bytestring
                      , containers
+                     , monad-par
                      , distributed-process
                      , distributed-process-client-server
                      , distributed-process-task
