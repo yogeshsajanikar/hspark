@@ -8,16 +8,35 @@ import Control.Distributed.Process
 import Control.Monad
 import Control.Applicative
 import Data.Functor
-import Spark.DSL
+import Data.IORef
+import Data.Typeable
+
+newtype Block a = Block [Process [a]]
+
+data RDD :: * -> * where
+  DataRDD :: Block a -> RDD a
+  MapRDD :: Closure (a -> b) -> RDD a -> RDD b
+  FilterRDD :: Closure (a -> Bool) -> RDD a -> RDD a
+  ReduceRDD :: Ord k => Closure (k -> v -> v -> u) -> RDD (k, v) -> RDD (k, u)
+
+
+-- | Convert a closure into a list of 
+initRDD :: Typeable a => [Closure [a]] -> RDD a
+initRDD = DataRDD . Block . map unClosure
+    
+
 
 -- | An IOVar equivalent of 
-data NIVar a = NIVar ProcessId
+data NIVar a = NIVar (IORef (NIVarContents a))
+
+data NIVarContents a = Full ProcessId
+                     | Blocked [Block a -> Plan]
 
 new :: NodePar (NIVar (Block a))
 new = NodePar $ New
 
 put :: NIVar a -> a -> NodePar (NIVar a)
-put = NodePar $ Put 
+put = undefined
 
 get :: NIVar a -> NodePar a
 get = undefined
@@ -60,6 +79,13 @@ instance Monad NodePar where
   m >>= k = NodePar $ \c -> runNodePar m $ \a -> runNodePar (k a) c
 
 
-toNodePar :: RDD a -> NodePar a
-toNodePar = undefined
+toNodePar :: RDD a -> NodePar (Block a)
+toNodePar (DataRDD b) = return b
+toNodePar (MapRDD f b) = do
+  x <- toNodePar b
+  undefined
+toNodePar _ = undefined
 
+
+runPar :: NodePar (Block a) -> Process a
+runPar = undefined
