@@ -13,7 +13,7 @@ import Data.IORef
 import Data.Typeable
 import Control.DeepSeq
 
-newtype Block a = Block (Process [a])
+newtype Block a = Block (Closure [a])
 
 data RDD :: * -> * where
   DataRDD :: [Block a] -> RDD a
@@ -24,7 +24,7 @@ data RDD :: * -> * where
 
 -- | Convert a closure into a list of 
 initRDD :: Typeable a => [Closure [a]] -> RDD a
-initRDD = DataRDD . map (Block . unClosure)
+initRDD = DataRDD . map Block
 
 
 -- | IORef to store status of completed processes
@@ -45,7 +45,7 @@ data NIVarContents a = Full (AsyncResult a)
 new :: NodePar (NIVar a)
 new = NodePar $ New Empty
 
-put :: NIVar a -> Process a -> NodePar ()
+put :: NIVar a -> Closure(Process a) -> NodePar ()
 put v i = NodePar $ \c -> Put v i (c ())
 
 get :: NIVar a -> NodePar a
@@ -60,7 +60,7 @@ data Plan :: * where
   Fork :: Plan -> Plan -> Plan
   Done :: Plan
   Get  :: NIVar a -> (a -> Plan) -> Plan
-  Put  :: NIVar a -> Process a -> Plan -> Plan
+  Put  :: NIVar a -> Closure (Process a) -> Plan -> Plan
   New  :: NIVarContents a -> (NIVar a -> Plan) -> Plan
 
 -- Note that we cannot convert this plan into usual Functor,
@@ -92,13 +92,13 @@ instance Monad NodePar where
 
   m >>= k = NodePar $ \c -> runNodePar m $ \a -> runNodePar (k a) c
 
-fire :: NodePar (Process a) -> NodePar (NIVar a)
-fire p = do
-  i <- new
-  fork $ do
-    x <- p
-    put i x
-  return i
+-- fire :: NodePar (Process a) -> NodePar (NIVar a)
+-- fire p = do
+--   i <- new
+--   fork $ do
+--     x <- p
+--     put i x
+--   return i
 
 
 

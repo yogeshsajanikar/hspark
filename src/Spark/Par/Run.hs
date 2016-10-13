@@ -15,6 +15,7 @@ data Sched = Sched
     scheds   :: [Sched] -- Global list of all per-thread workers.
   }
 
+-- | Scheduling the generated 'Plan' on set of nodes
 sched :: Bool -> Sched -> Plan -> IO ()
 sched = undefined
 
