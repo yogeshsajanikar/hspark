@@ -1,3 +1,4 @@
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -21,28 +22,34 @@ instance (Typeable a, Binary a) => Binary (Fetch a)
 data Packet a = Packet ProcessId a
               | EmptyPacket ProcessId
 
+
+sdictFetch :: SerializableDict a -> SerializableDict (Fetch a)
+sdictFetch SerializableDict = SerializableDict 
+
+expectS :: SerializableDict a -> Process a
+expectS SerializableDict = expect
+
+sendChanS :: SerializableDict a -> SendPort a -> a -> Process ()
+sendChanS SerializableDict = sendChan
+
 -- | Process that stores the data, until terminated explicitly
-storeProc :: (Typeable a, Binary a) => SerializableDict a -> a -> Process ()
+storeProc :: SerializableDict a -> a -> Process ()
 storeProc dA x = do
-  f <- expect
+  f <- expectS (sdictFetch dA)
   case f of
     Fetch pid sport -> do
-      sendChan sport x
-      storeProc x
+      sendChanS dA sport x
+      storeProc dA x
     Terminate ->
       return ()
 
 -- | Given a process, store its value in a locally spawned store 
--- createStore :: (Binary a, Typeable a) => Process a -> Process ProcessId
--- createStore proc_ = do
---   x <- proc_
---   spawnLocal (storeProc x)
+createStore :: SerializableDict a -> Process a -> Process ProcessId
+createStore dA proc_ = do
+   x <- proc_
+   spawnLocal (storeProc dA x)
 
---createStoreClosure :: Process a -> Closure (Process a)
---createStoreClosure = $(mkStatic 'createStore) 
-
-
-$(remotable [ 'createStore ])
+$(remotable [ 'storeProc, 'createStore ])
 
 
 
