@@ -25,12 +25,19 @@ library
                      , Spark.Executor
                      , Spark.Block
                      , Spark.Pure.Exec
+                     , Spark.DSL
+                     , Spark.Par.Types
+                     , Spark.Par.Convert
+                     , Spark.Par.Process
+                     , Spark.Par.Run
   build-depends:       base >= 4.7 && < 5
                      , binary
                      , bytestring
                      , containers
+                     , deepseq
                      , monad-par
                      , distributed-process
+                     , distributed-process-async
                      , distributed-process-client-server
                      , distributed-process-task
                      , distributed-static
