@@ -111,23 +111,19 @@ reschedule queue@Sched { workpool } = do
 
 steal :: Sched -> Process ()
 steal q@Sched{ nodes, idle, scheds, no=my_no } = do
-  -- printf "cpu %d stealing\n" my_no
   go scheds
   where
     go [] = do m <- liftIO $ newEmptyMVar
                r <- liftIO $ atomicModifyIORef idle $ \is -> (m:is, is)
                if length r == length nodes 
                   then do
-                     -- printf "cpu %d initiating shutdown\n" my_no
                      mapM_ (\m -> liftIO $ putMVar m True) r
                   else do
                     done <- liftIO $ takeMVar m
                     if done
                        then do
-                         -- printf "cpu %d shutting down\n" my_no
                          return ()
                        else do
-                         -- printf "cpu %d woken up\n" my_no
                          go scheds
     go (x:xs)
       | no x == my_no = go xs
@@ -138,7 +134,6 @@ steal q@Sched{ nodes, idle, scheds, no=my_no } = do
                     (x:xs) -> (xs, Just x)
          case r of
            Just t  -> do
-              -- printf "cpu %d got work from cpu %d\n" my_no (no x)
               sched q t
            Nothing -> go xs
 
